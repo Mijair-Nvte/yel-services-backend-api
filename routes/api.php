@@ -1,0 +1,137 @@
+<?php
+
+use App\Http\Controllers\Api\Auth\LoginController as AuthLoginController;
+use App\Http\Controllers\Api\Auth\LogoutController as AuthLogoutController;
+use App\Http\Controllers\Api\Auth\MeController as AuthMeController;
+use App\Http\Controllers\Api\Auth\RegisterController;
+use App\Http\Controllers\Api\DocumentController;
+use App\Http\Controllers\Api\FolderController;
+use App\Http\Controllers\Api\OrgAreaController;
+use App\Http\Controllers\Api\OrgAreaUserRoleController;
+use App\Http\Controllers\Api\OrgCompanyController;
+use App\Http\Controllers\Api\OrgCompanyNoticeController;
+use App\Http\Controllers\Api\OrgCompanyUserController;
+use App\Http\Controllers\Api\OrgPositionController;
+use Illuminate\Support\Facades\Route;
+
+Route::prefix('v1')->group(function () {
+
+    // 🔓 públicas
+    Route::post('/register', RegisterController::class);
+    Route::post('/login', AuthLoginController::class);
+
+    // 📄 Documentos (públicos)
+    Route::get('/documents/{uid}/view', [DocumentController::class, 'view']);
+    Route::get('/documents/{uid}/download', [DocumentController::class, 'download']);
+
+    // 🔒 protegidas
+    Route::middleware('auth:sanctum')->group(function () {
+
+        Route::get('/me', AuthMeController::class);
+        Route::post('/logout', AuthLogoutController::class);
+
+        // 🏢 Workspaces
+        Route::get('/org-companies', [OrgCompanyController::class, 'index']);
+        Route::post('/org-companies', [OrgCompanyController::class, 'store']);
+
+        Route::get('/org-companies/{uid}', [OrgCompanyController::class, 'show']);
+        Route::put('/org-companies/{uid}', [OrgCompanyController::class, 'update']);
+        Route::delete('/org-companies/{uid}', [OrgCompanyController::class, 'destroy']);
+
+        // 🧩 Áreas (siempre dentro de workspace)
+        Route::get('/org-companies/{uid}/areas', [OrgAreaController::class, 'index']);
+        Route::post('/org-companies/{uid}/areas', [OrgAreaController::class, 'store']);
+
+        Route::get('/org-areas/{uid}', [OrgAreaController::class, 'show']);
+
+        Route::put('/org-areas/{id}', [OrgAreaController::class, 'update']);
+        Route::delete('/org-areas/{id}', [OrgAreaController::class, 'destroy']);
+
+        Route::get(
+            '/org-areas/{uid}/team',
+            [OrgAreaUserRoleController::class, 'byArea']
+        );
+
+        // 🎭 Roles (globales por ahora)
+        Route::get('/org-positions', [OrgPositionController::class, 'index']);
+        Route::post('/org-positions', [OrgPositionController::class, 'store']);
+        Route::get('/org-positions/{id}', [OrgPositionController::class, 'show']);
+        Route::put('/org-positions/{id}', [OrgPositionController::class, 'update']);
+        Route::delete('/org-positions/{id}', [OrgPositionController::class, 'destroy']);
+
+        // 👤 Asignaciones
+        Route::get('/org-area-user-roles', [OrgAreaUserRoleController::class, 'index']);
+        Route::post('/org-area-user-roles', [OrgAreaUserRoleController::class, 'store']);
+
+        Route::get('/org-area-user-roles/{id}', [OrgAreaUserRoleController::class, 'show']);
+        Route::put('/org-area-user-roles/{id}', [OrgAreaUserRoleController::class, 'update']);
+        Route::delete('/org-area-user-roles/{id}', [OrgAreaUserRoleController::class, 'destroy']);
+
+        // 👥 Equipo / Staff
+        Route::get(
+            '/org-companies/{uid}/team',
+            [OrgCompanyUserController::class, 'index']
+        );
+
+        Route::post(
+            '/org-companies/{uid}/team',
+            [OrgCompanyUserController::class, 'store']
+        );
+
+        Route::get(
+            '/org-companies/{uid}/team/{id}',
+            [OrgCompanyUserController::class, 'show']
+        );
+
+        Route::put(
+            '/org-companies/{uid}/team/{id}',
+            [OrgCompanyUserController::class, 'update']
+        );
+
+        Route::delete(
+            '/org-companies/{uid}/team/{id}',
+            [OrgCompanyUserController::class, 'destroy']
+        );
+
+        // Avisos globales por compañía
+        Route::get(
+            '/org-companies/{uid}/notices',
+            [OrgCompanyNoticeController::class, 'index']
+        );
+
+        Route::post(
+            '/org-companies/{uid}/notices',
+            [OrgCompanyNoticeController::class, 'store']
+        );
+
+        Route::get(
+            '/org-company-notices/{uid}',
+            [OrgCompanyNoticeController::class, 'show']
+        );
+
+        Route::put(
+            '/org-company-notices/{uid}',
+            [OrgCompanyNoticeController::class, 'update']
+        );
+
+        Route::delete(
+            '/org-company-notices/{uid}',
+            [OrgCompanyNoticeController::class, 'destroy']
+        );
+
+        // 📂 Carpetas
+        Route::get('/folders', [FolderController::class, 'index']);          // 👈 ROOTS
+        Route::get('/folders/{folder}/children', [FolderController::class, 'children']);
+        Route::post('/folders', [FolderController::class, 'store']);
+        Route::delete('/folders/{folder}', [FolderController::class, 'destroy']);
+        Route::put('/folders/{folder}', [FolderController::class, 'update']);
+
+        // 📄 Documentos
+        Route::get('/folders/{folderUid}/documents', [DocumentController::class, 'byFolder']);
+        Route::post('/documents', [DocumentController::class, 'store']);
+        Route::get('/documents/{uid}', [DocumentController::class, 'show']);
+
+        Route::delete('/documents/{uid}', [DocumentController::class, 'destroy']);
+
+    });
+});
