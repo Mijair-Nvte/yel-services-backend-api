@@ -6,9 +6,11 @@ use App\Http\Controllers\Api\Auth\MeController as AuthMeController;
 use App\Http\Controllers\Api\Auth\RegisterController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\FolderController;
+use App\Http\Controllers\Api\NoticeLevelController;
 use App\Http\Controllers\Api\OrgAreaController;
 use App\Http\Controllers\Api\OrgAreaUserRoleController;
 use App\Http\Controllers\Api\OrgCompanyController;
+use App\Http\Controllers\Api\OrgCompanyInvitationController;
 use App\Http\Controllers\Api\OrgCompanyNoticeController;
 use App\Http\Controllers\Api\OrgCompanyUserController;
 use App\Http\Controllers\Api\OrgPositionController;
@@ -26,6 +28,12 @@ Route::prefix('v1')->group(function () {
 
     // 🔒 protegidas
     Route::middleware('auth:sanctum')->group(function () {
+
+        // ✉️ Invitaciones
+        Route::post(
+            '/org-companies/{uid}/invitations',
+            [OrgCompanyInvitationController::class, 'store']
+        );
 
         Route::get('/me', AuthMeController::class);
         Route::post('/logout', AuthLogoutController::class);
@@ -68,10 +76,7 @@ Route::prefix('v1')->group(function () {
         Route::delete('/org-area-user-roles/{id}', [OrgAreaUserRoleController::class, 'destroy']);
 
         // 👥 Equipo / Staff
-        Route::get(
-            '/org-companies/{uid}/team',
-            [OrgCompanyUserController::class, 'index']
-        );
+        Route::get('/org-companies/{uid}/team', [OrgCompanyUserController::class, 'index']);
 
         Route::post(
             '/org-companies/{uid}/team',
@@ -94,10 +99,6 @@ Route::prefix('v1')->group(function () {
         );
 
         // Avisos globales por compañía
-        Route::get(
-            '/org-companies/{uid}/notices',
-            [OrgCompanyNoticeController::class, 'index']
-        );
 
         Route::post(
             '/org-companies/{uid}/notices',
@@ -117,6 +118,25 @@ Route::prefix('v1')->group(function () {
         Route::delete(
             '/org-company-notices/{uid}',
             [OrgCompanyNoticeController::class, 'destroy']
+        );
+
+        Route::post(
+            '/org-company-notices/{uid}/pin',
+            [OrgCompanyNoticeController::class, 'pin']
+        );
+
+        Route::post(
+            '/org-company-notices/{uid}/unpin',
+            [OrgCompanyNoticeController::class, 'unpin']
+        );
+
+        Route::get('/notice-levels', [NoticeLevelController::class, 'index']);
+
+        Route::get('/org-companies/{uid}/notices', [OrgCompanyNoticeController::class, 'index']);
+
+        Route::get(
+            '/org-companies/{uid}/areas/{areaUid}/notices',
+            [OrgCompanyNoticeController::class, 'indexArea']
         );
 
         // 📂 Carpetas

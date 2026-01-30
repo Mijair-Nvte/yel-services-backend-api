@@ -69,4 +69,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(OrgAreaUserRole::class);
     }
+
+    // Para saber si un usuario tiene invitaciones pendientes:
+    public function invitations()
+    {
+        return $this->hasMany(
+            OrgCompanyInvitation::class,
+            'email',
+            'email'
+        );
+    }
 }

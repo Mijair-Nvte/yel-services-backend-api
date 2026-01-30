@@ -9,8 +9,15 @@ class MeController extends Controller
 {
     public function __invoke(Request $request)
     {
+        $user = $request->user()->load('profile');
+
         return response()->json([
-            'user' => $request->user(),
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'avatar' => $user->profile->avatar ?? null,
+            ],
         ]);
     }
 }

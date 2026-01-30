@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
-
+use Illuminate\Database\Eloquent\Relations\HasMany;
 class OrgCompany extends Model
 {
     use HasFactory;
@@ -41,8 +41,12 @@ class OrgCompany extends Model
     }
 
     public function folders()
-{
-    return $this->morphMany(Folder::class, 'folderable');
-}
+    {
+        return $this->morphMany(Folder::class, 'folderable');
+    }
 
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(OrgCompanyInvitation::class);
+    }
 }
