@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\OrgAreaController;
 use App\Http\Controllers\Api\OrgAreaUserRoleController;
 use App\Http\Controllers\Api\OrgCompanyController;
 use App\Http\Controllers\Api\OrgCompanyInvitationController;
+use App\Http\Controllers\Api\OrgCompanyLinkController;
 use App\Http\Controllers\Api\OrgCompanyNoticeController;
 use App\Http\Controllers\Api\OrgCompanyUserController;
 use App\Http\Controllers\Api\OrgPositionController;
@@ -128,6 +129,32 @@ Route::prefix('v1')->group(function () {
         Route::post(
             '/org-company-notices/{uid}/unpin',
             [OrgCompanyNoticeController::class, 'unpin']
+        );
+
+        // Links globales por compañía
+        Route::get(
+            '/org-companies/{uid}/links',
+            [OrgCompanyLinkController::class, 'index']
+        );
+
+        Route::post(
+            '/org-companies/{uid}/links',
+            [OrgCompanyLinkController::class, 'store']
+        );
+
+        Route::get(
+            '/org-company-links/{uid}',
+            [OrgCompanyLinkController::class, 'show']
+        );
+
+        Route::put(
+            '/org-company-links/{uid}',
+            [OrgCompanyLinkController::class, 'update']
+        );
+
+        Route::delete(
+            '/org-company-links/{uid}',
+            [OrgCompanyLinkController::class, 'destroy']
         );
 
         Route::get('/notice-levels', [NoticeLevelController::class, 'index']);
