@@ -54,9 +54,12 @@ class OrgAreaController extends Controller
         return response()->json($area);
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, string $uid)
     {
-        $area = OrgArea::findOrFail($id);
+        $area = OrgArea::where('uid', $uid)->with('company')->firstOrFail();
+
+        // 🔐 Seguridad por workspace
+        $this->authorizeWorkspace($area->company);
 
         $data = $request->validate([
             'name' => 'sometimes|string|max:255',
@@ -73,11 +76,19 @@ class OrgAreaController extends Controller
         return response()->json($area);
     }
 
-    public function destroy($id)
+    public function destroy(string $uid)
     {
-        $area = OrgArea::findOrFail($id);
+        $area = OrgArea::where('uid', $uid)->with('company')->firstOrFail();
+
+        // 🔐 Seguridad por workspace
+        $this->authorizeWorkspace($area->company);
+
         $area->delete();
 
-        return response()->json(['message' => 'Area deleted']);
+        return response()->json([
+            'message' => 'Area deleted successfully',
+        ]);
     }
+
+ 
 }

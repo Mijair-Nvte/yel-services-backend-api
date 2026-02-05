@@ -18,12 +18,15 @@ class OrgCompanyLink extends Model
         'title',
         'url',
         'description',
+
+        'preview_image',
+        'preview_description',
     ];
 
     protected static function booted()
     {
         static::creating(function ($link) {
-            $link->uid = 'lnk_' . Str::ulid();
+            $link->uid = 'lnk_'.Str::ulid();
         });
     }
 

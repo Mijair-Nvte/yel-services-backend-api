@@ -53,8 +53,8 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/org-areas/{uid}', [OrgAreaController::class, 'show']);
 
-        Route::put('/org-areas/{id}', [OrgAreaController::class, 'update']);
-        Route::delete('/org-areas/{id}', [OrgAreaController::class, 'destroy']);
+        Route::put('/org-areas/{uid}', [OrgAreaController::class, 'update']);
+        Route::delete('/org-areas/{uid}', [OrgAreaController::class, 'destroy']);
 
         Route::get(
             '/org-areas/{uid}/team',
