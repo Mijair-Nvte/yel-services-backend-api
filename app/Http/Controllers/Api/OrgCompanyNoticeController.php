@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\OrgCompanyNoticeCreated;
 use App\Http\Controllers\Concerns\AuthorizesWorkspace;
 use App\Http\Controllers\Controller;
 use App\Models\OrgArea;
@@ -53,7 +54,7 @@ class OrgCompanyNoticeController extends Controller
     }
 
     /**
-     * Crear aviso global para la compañía
+     * Crear aviso global para la compañía o area
      */
     public function store(Request $request, string $uid)
     {
@@ -90,6 +91,8 @@ class OrgCompanyNoticeController extends Controller
             'is_pinned' => $data['is_pinned'] ?? false,
 
         ]);
+
+        event(new OrgCompanyNoticeCreated($notice));
 
         return response()->json($notice, 201);
     }
