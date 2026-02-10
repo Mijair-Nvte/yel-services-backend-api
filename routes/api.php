@@ -23,6 +23,9 @@ Route::prefix('v1')->group(function () {
     Route::post('/register', RegisterController::class);
     Route::post('/login', AuthLoginController::class);
 
+    Route::get( '/org-invitations/{token}', [OrgCompanyInvitationController::class, 'show'] );
+    Route::post( '/org-invitations/{token}/accept', [OrgCompanyInvitationController::class, 'accept'] );
+    
     // 📄 Documentos (públicos)
     Route::get('/documents/{uid}/view', [DocumentController::class, 'view']);
     Route::get('/documents/{uid}/download', [DocumentController::class, 'download']);

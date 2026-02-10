@@ -30,6 +30,11 @@ class OrgCompanyInvitation extends Model
         return $this->belongsTo(OrgCompany::class, 'org_company_id');
     }
 
+    public function area(): BelongsTo
+    {
+        return $this->belongsTo(OrgArea::class, 'org_area_id');
+    }
+
     /**
      * Saber si la invitación ya fue aceptada
      */

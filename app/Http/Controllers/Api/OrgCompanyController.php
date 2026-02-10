@@ -7,9 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Models\OrgCompany;
 use App\Models\OrgCompanyUser;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class OrgCompanyController extends Controller
 {
@@ -18,7 +17,9 @@ class OrgCompanyController extends Controller
     public function index()
     {
         return response()->json(
-            OrgCompany::orderBy('name')->get()
+            OrgCompany::forUser(Auth::id())
+                ->orderBy('name')
+                ->get()
         );
     }
 

@@ -9,11 +9,28 @@ use App\Models\OrgCompanyInvitation;
 use App\Models\OrgCompanyUser;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class OrgCompanyInvitationController extends Controller
 {
     use AuthorizesWorkspace;
+
+    public function show(string $token)
+    {
+        $invite = OrgCompanyInvitation::where('token', $token)
+            ->whereNull('accepted_at')
+            ->where('expires_at', '>', now())
+            ->with(['company', 'area'])
+            ->firstOrFail();
+
+        return response()->json([
+            'email' => $invite->email,
+            'company' => $invite->company->name,
+            'area' => $invite->area?->name,
+            'role' => $invite->role,
+        ]);
+    }
 
     /**
      * 📩 Crear invitación a un workspace por correo
@@ -83,7 +100,7 @@ class OrgCompanyInvitationController extends Controller
             'expires_at' => now()->addDays(7),
         ]);
 
-        \Mail::to($invite->email)->send(
+        Mail::to($invite->email)->send(
             new \App\Mail\OrgCompanyInvitationMail($invite)
         );
 
@@ -91,5 +108,45 @@ class OrgCompanyInvitationController extends Controller
             'message' => 'Invitación creada correctamente',
             'invite' => $invite,
         ], 201);
+    }
+
+    public function accept(Request $request, string $token)
+    {
+        $invite = OrgCompanyInvitation::where('token', $token)
+            ->whereNull('accepted_at')
+            ->where('expires_at', '>', now())
+            ->firstOrFail();
+
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'password' => 'required|min:8|confirmed',
+        ]);
+
+        // Crear o buscar usuario
+        $user = User::firstOrCreate(
+            ['email' => $invite->email],
+            [
+                'name' => $data['name'],
+                'password' => bcrypt($data['password']),
+            ]
+        );
+
+        // Agregar a la compañía
+        OrgCompanyUser::firstOrCreate([
+            'user_id' => $user->id,
+            'org_company_id' => $invite->org_company_id,
+        ], [
+            'role' => $invite->role,
+            'is_active' => true,
+        ]);
+
+        // Marcar invitación como aceptada
+        $invite->update([
+            'accepted_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Invitación aceptada correctamente',
+        ]);
     }
 }

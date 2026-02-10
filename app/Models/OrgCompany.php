@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Builder;
 
 class OrgCompany extends Model
 {
@@ -54,5 +55,13 @@ class OrgCompany extends Model
     public function links(): HasMany
     {
         return $this->hasMany(OrgCompanyLink::class);
+    }
+
+    public function scopeForUser(Builder $query, int $userId)
+    {
+        return $query->whereHas('users', function ($q) use ($userId) {
+            $q->where('user_id', $userId)
+                ->where('is_active', true);
+        });
     }
 }
