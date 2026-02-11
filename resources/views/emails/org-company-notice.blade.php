@@ -75,7 +75,7 @@
                             </div>
 
                             <div style="margin-top:35px; text-align:center;">
-                                <a href="{{ config('app.frontend_url') }}/company/{{ $notice->company->uid }}/notices"
+                                <a href="{{ config('app.frontend_url') }}/dashboard/{{ $notice->company->uid }}/notices"
                                     style="
                                         display:inline-block;
                                         padding:16px 35px;
