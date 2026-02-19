@@ -23,10 +23,28 @@ class UserProfile extends Model
     ];
 
     /**
+     * 👇 Esto hace que avatar_url se agregue automáticamente al JSON
+     */
+    protected $appends = ['avatar_url'];
+
+    /**
      * Relación con User
      */
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * 🎯 Accessor PRO
+     * Genera automáticamente la URL pública del avatar
+     */
+    public function getAvatarUrlAttribute()
+    {
+        if (!$this->avatar) {
+            return null;
+        }
+
+        return asset('storage/' . $this->avatar);
     }
 }

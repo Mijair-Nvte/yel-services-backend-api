@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\Auth\LoginController as AuthLoginController;
 use App\Http\Controllers\Api\Auth\LogoutController as AuthLogoutController;
 use App\Http\Controllers\Api\Auth\MeController as AuthMeController;
@@ -23,9 +24,9 @@ Route::prefix('v1')->group(function () {
     Route::post('/register', RegisterController::class);
     Route::post('/login', AuthLoginController::class);
 
-    Route::get( '/org-invitations/{token}', [OrgCompanyInvitationController::class, 'show'] );
-    Route::post( '/org-invitations/{token}/accept', [OrgCompanyInvitationController::class, 'accept'] );
-    
+    Route::get('/org-invitations/{token}', [OrgCompanyInvitationController::class, 'show']);
+    Route::post('/org-invitations/{token}/accept', [OrgCompanyInvitationController::class, 'accept']);
+
     // 📄 Documentos (públicos)
     Route::get('/documents/{uid}/view', [DocumentController::class, 'view']);
     Route::get('/documents/{uid}/download', [DocumentController::class, 'download']);
@@ -41,6 +42,11 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/me', AuthMeController::class);
         Route::post('/logout', AuthLogoutController::class);
+
+        // 👤 Account
+        Route::get('/account', [AccountController::class, 'show']);
+        Route::put('/account', [AccountController::class, 'update']);
+        Route::post('/account/avatar', [AccountController::class, 'uploadAvatar']);
 
         // 🏢 Workspaces
         Route::get('/org-companies', [OrgCompanyController::class, 'index']);
@@ -65,11 +71,20 @@ Route::prefix('v1')->group(function () {
         );
 
         // 🎭 Roles (globales por ahora)
-        Route::get('/org-positions', [OrgPositionController::class, 'index']);
-        Route::post('/org-positions', [OrgPositionController::class, 'store']);
-        Route::get('/org-positions/{id}', [OrgPositionController::class, 'show']);
-        Route::put('/org-positions/{id}', [OrgPositionController::class, 'update']);
-        Route::delete('/org-positions/{id}', [OrgPositionController::class, 'destroy']);
+        Route::get(
+            '/org-companies/{uid}/positions',
+            [OrgPositionController::class, 'index']
+        );
+
+        Route::post(
+            '/org-companies/{uid}/positions',
+            [OrgPositionController::class, 'store']
+        );
+
+        Route::delete(
+            '/org-companies/{uid}/positions/{id}',
+            [OrgPositionController::class, 'destroy']
+        );
 
         // 👤 Asignaciones
         Route::get('/org-area-user-roles', [OrgAreaUserRoleController::class, 'index']);

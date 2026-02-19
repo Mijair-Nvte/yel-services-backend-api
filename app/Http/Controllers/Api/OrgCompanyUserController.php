@@ -23,14 +23,30 @@ class OrgCompanyUserController extends Controller
 
         $team = OrgCompanyUser::where('org_company_id', $company->id)
             ->with([
-                'user.profile',
-                'user.areaAssignments.area',
-                'user.areaAssignments.position',
+                'user:id,name,email',
+                'user.profile:user_id,avatar',
+                'user.areaAssignments.area:id,name',
+                'user.areaAssignments.position:id,name',
             ])
             ->orderBy('created_at')
             ->get();
 
-        return response()->json($team);
+        return response()->json(
+            $team->map(function ($member) {
+                return [
+                    'id' => $member->id,
+                    'role' => $member->role,
+                    'user' => [
+                        'id' => $member->user->id,
+                        'name' => $member->user->name,
+                        'email' => $member->user->email,
+                        'avatar_url' => optional($member->user->profile)->avatar_url,
+                        'area_assignments' => $member->user->areaAssignments,
+                    ],
+                ];
+            })
+        );
+
     }
 
     /**

@@ -50,6 +50,37 @@ class OrgAreaUserRoleController extends Controller
             'is_active' => 'boolean',
         ]);
 
+        // 🔎 Buscar área con compañía
+        $area = OrgArea::with('company')->findOrFail($data['org_area_id']);
+
+        // 🔐 Validar que el usuario tenga acceso al workspace
+        $this->authorizeWorkspace($area->company);
+
+        // 🔎 Validar que el usuario pertenezca a la compañía
+        $belongsToCompany = $area->company
+            ->users()
+            ->where('user_id', $data['user_id'])
+            ->exists();
+
+        if (! $belongsToCompany) {
+            return response()->json([
+                'message' => 'El usuario no pertenece a esta compañía',
+            ], 422);
+        }
+
+        // 🚫 Evitar duplicados
+        $exists = OrgAreaUserRole::where([
+            'user_id' => $data['user_id'],
+            'org_area_id' => $data['org_area_id'],
+            'org_role_id' => $data['org_role_id'],
+        ])->exists();
+
+        if ($exists) {
+            return response()->json([
+                'message' => 'El usuario ya está asignado a esta área con ese puesto',
+            ], 409);
+        }
+
         $assignment = OrgAreaUserRole::create($data);
 
         return response()->json(
@@ -97,7 +128,11 @@ class OrgAreaUserRoleController extends Controller
      */
     public function destroy($id)
     {
-        OrgAreaUserRole::findOrFail($id)->delete();
+        $assignment = OrgAreaUserRole::with('area.company')->findOrFail($id);
+
+        $this->authorizeWorkspace($assignment->area->company);
+
+        $assignment->delete();
 
         return response()->json(['message' => 'Assignment deleted']);
     }
