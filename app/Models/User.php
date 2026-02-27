@@ -79,4 +79,9 @@ class User extends Authenticatable
             'email'
         );
     }
+
+    public function createdEvents()
+    {
+        return $this->hasMany(OrgEvent::class, 'created_by');
+    }
 }

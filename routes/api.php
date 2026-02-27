@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\OrgCompanyInvitationController;
 use App\Http\Controllers\Api\OrgCompanyLinkController;
 use App\Http\Controllers\Api\OrgCompanyNoticeController;
 use App\Http\Controllers\Api\OrgCompanyUserController;
+use App\Http\Controllers\Api\OrgEventController;
 use App\Http\Controllers\Api\OrgPositionController;
 use Illuminate\Support\Facades\Route;
 
@@ -85,6 +86,13 @@ Route::prefix('v1')->group(function () {
             '/org-companies/{uid}/positions/{id}',
             [OrgPositionController::class, 'destroy']
         );
+
+        // 📅 Eventos calendario
+        Route::get('/org-companies/{uid}/events', [OrgEventController::class, 'index']);
+        Route::post('/org-companies/{uid}/events', [OrgEventController::class, 'store']);
+        Route::get('/org-companies/{uid}/events/{eventUid}', [OrgEventController::class, 'show']);
+        Route::put('/org-companies/{uid}/events/{eventUid}', [OrgEventController::class, 'update']);
+        Route::delete('/org-companies/{uid}/events/{eventUid}', [OrgEventController::class, 'destroy']);
 
         // 👤 Asignaciones
         Route::get('/org-area-user-roles', [OrgAreaUserRoleController::class, 'index']);

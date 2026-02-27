@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
-use Illuminate\Database\Eloquent\Builder;
 
 class OrgCompany extends Model
 {
@@ -63,5 +63,10 @@ class OrgCompany extends Model
             $q->where('user_id', $userId)
                 ->where('is_active', true);
         });
+    }
+
+    public function events()
+    {
+        return $this->hasMany(OrgEvent::class);
     }
 }
