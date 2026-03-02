@@ -19,6 +19,7 @@ class OrgEvent extends Model
         'color',
         'location',
         'meeting_url',
+        'external_url',
         'starts_at',
         'ends_at',
         'is_all_day',
