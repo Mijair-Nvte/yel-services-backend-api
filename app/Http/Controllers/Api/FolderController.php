@@ -9,6 +9,7 @@ use App\Models\OrgCompany;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class FolderController extends Controller
 {
@@ -133,23 +134,49 @@ class FolderController extends Controller
      */
     public function destroy(Folder $folder)
     {
-        DB::transaction(fn () => $this->deleteRecursive($folder));
+        try {
+            DB::transaction(fn () => $this->deleteRecursive($folder));
 
-        return response()->json([
-            'message' => 'Carpeta eliminada correctamente',
-        ]);
+            return response()->json([
+                'message' => 'Carpeta eliminada correctamente',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error eliminando carpeta', ['error' => $e->getMessage(), 'folder_id' => $folder->id]);
+
+            return response()->json(['message' => 'Ocurrió un error al eliminar la carpeta.'], 500);
+        }
+
     }
 
     private function deleteRecursive(Folder $folder)
     {
+        // 1. Iterar sobre todos los documentos de esta carpeta
         foreach ($folder->documents as $doc) {
+            $disk = $doc->storage_service;
+            $path = $doc->file_url;
+
+            // Intentar borrar físicamente de R2 (o el disco que sea)
+            if ($disk && $path) {
+                try {
+                    if (Storage::disk($disk)->exists($path)) {
+                        Storage::disk($disk)->delete($path);
+                    }
+                } catch (\Exception $e) {
+                    // Solo logueamos el error, pero permitimos que el borrado en BD continúe
+                    Log::warning("No se pudo eliminar el archivo {$path} de Cloudflare al borrar la carpeta.", ['error' => $e->getMessage()]);
+                }
+            }
+
+            // Borrar de la base de datos
             $doc->delete();
         }
 
+        // 2. Si tiene subcarpetas, llamar a esta misma función de nuevo (Recursividad)
         foreach ($folder->children as $child) {
             $this->deleteRecursive($child);
         }
 
+        // 3. Finalmente, borrar la carpeta actual
         $folder->delete();
     }
 }

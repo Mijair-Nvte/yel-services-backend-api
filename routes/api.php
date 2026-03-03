@@ -206,5 +206,8 @@ Route::prefix('v1')->group(function () {
 
         Route::delete('/documents/{uid}', [DocumentController::class, 'destroy']);
 
+        Route::post('/documents/presign', [DocumentController::class, 'presign']);
+        Route::post('/documents/confirm', [DocumentController::class, 'confirm']);
+
     });
 });
