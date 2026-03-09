@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\FolderController;
 use App\Http\Controllers\Api\NoticeLevelController;
 use App\Http\Controllers\Api\OrgAreaController;
 use App\Http\Controllers\Api\OrgAreaUserRoleController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\OrgCompanyController;
 use App\Http\Controllers\Api\OrgCompanyInvitationController;
 use App\Http\Controllers\Api\OrgCompanyLinkController;
@@ -86,6 +87,9 @@ Route::prefix('v1')->group(function () {
             '/org-companies/{uid}/positions/{id}',
             [OrgPositionController::class, 'destroy']
         );
+
+        //dashboard overwiea
+        Route::get( '/org-companies/{uid}/dashboard', [DashboardController::class, 'overview'] );
 
         // 📅 Eventos calendario
         Route::get('/org-companies/{uid}/events', [OrgEventController::class, 'index']);
