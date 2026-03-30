@@ -84,4 +84,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(OrgEvent::class, 'created_by');
     }
+
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class);
+    }
 }

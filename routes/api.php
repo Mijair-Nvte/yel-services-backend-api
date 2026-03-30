@@ -5,12 +5,13 @@ use App\Http\Controllers\Api\Auth\LoginController as AuthLoginController;
 use App\Http\Controllers\Api\Auth\LogoutController as AuthLogoutController;
 use App\Http\Controllers\Api\Auth\MeController as AuthMeController;
 use App\Http\Controllers\Api\Auth\RegisterController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\FolderController;
 use App\Http\Controllers\Api\NoticeLevelController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OrgAreaController;
 use App\Http\Controllers\Api\OrgAreaUserRoleController;
-use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\OrgCompanyController;
 use App\Http\Controllers\Api\OrgCompanyInvitationController;
 use App\Http\Controllers\Api\OrgCompanyLinkController;
@@ -88,8 +89,8 @@ Route::prefix('v1')->group(function () {
             [OrgPositionController::class, 'destroy']
         );
 
-        //dashboard overwiea
-        Route::get( '/org-companies/{uid}/dashboard', [DashboardController::class, 'overview'] );
+        // dashboard overwiea
+        Route::get('/org-companies/{uid}/dashboard', [DashboardController::class, 'overview']);
 
         // 📅 Eventos calendario
         Route::get('/org-companies/{uid}/events', [OrgEventController::class, 'index']);
@@ -196,6 +197,16 @@ Route::prefix('v1')->group(function () {
             [OrgCompanyNoticeController::class, 'indexArea']
         );
 
+        // notificaciones
+
+        Route::get('/notifications', [NotificationController::class, 'index']);
+        Route::get('/notifications/unread', [NotificationController::class, 'unread']);
+        Route::get('/notifications/unread/count', [NotificationController::class, 'countUnread']);
+
+        Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::post('/notifications/read-all', [NotificationController::class, 'markAll']);
+
+        
         // 📂 Carpetas
         Route::get('/folders', [FolderController::class, 'index']);          // 👈 ROOTS
         Route::get('/folders/{folder}/children', [FolderController::class, 'children']);
