@@ -2,7 +2,6 @@
 
 namespace App\Listeners;
 
-use App\Enums\NotificationType;
 use App\Events\NoticeCreated;
 use App\Models\User;
 use App\Services\Notifications\NotificationService;
@@ -19,13 +18,21 @@ class SendNoticeNotification
 
         $orgCompanyId = $notice->org_company_id;
 
+        // 🔥 Agregamos el filtro para excluir al creador
         $users = User::whereHas('companies', function ($q) use ($orgCompanyId) {
             $q->where('org_company_id', $orgCompanyId);
-        })->get();
+        })
+            ->where('id', '!=', auth()->id()) // <-- ESTA LÍNEA ES LA CLAVE
+            ->get();
+
+        // Si solo estaba el creador, no enviamos nada
+        if ($users->isEmpty()) {
+            return;
+        }
 
         $this->notificationService->send(
             $users,
-            NotificationType::NOTICE_CREATED,
+            'notice.created',
             [
                 'title' => $notice->title,
                 'notice_id' => $notice->id,

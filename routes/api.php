@@ -37,6 +37,10 @@ Route::prefix('v1')->group(function () {
     // 🔒 protegidas
     Route::middleware('auth:sanctum')->group(function () {
 
+        Route::post('/broadcasting/auth', function (\Illuminate\Http\Request $request) {
+            return \Illuminate\Support\Facades\Broadcast::auth($request);
+        });
+
         // ✉️ Invitaciones
         Route::post(
             '/org-companies/{uid}/invitations',
@@ -206,7 +210,6 @@ Route::prefix('v1')->group(function () {
         Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
         Route::post('/notifications/read-all', [NotificationController::class, 'markAll']);
 
-        
         // 📂 Carpetas
         Route::get('/folders', [FolderController::class, 'index']);          // 👈 ROOTS
         Route::get('/folders/{folder}/children', [FolderController::class, 'children']);

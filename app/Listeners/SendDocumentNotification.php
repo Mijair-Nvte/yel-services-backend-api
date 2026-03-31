@@ -16,16 +16,22 @@ class SendDocumentNotification
     public function handle(DocumentUploaded $event): void
     {
         $document = $event->document;
-
         $orgCompanyId = $document->folder->folderable_id;
 
+        // 🔥 Agregamos la exclusión del creador aquí también
         $users = User::whereHas('companies', function ($q) use ($orgCompanyId) {
             $q->where('org_company_id', $orgCompanyId);
-        })->get();
+        })
+            ->where('id', '!=', auth()->id()) // <-- CLAVE para no auto-notificarte
+            ->get();
+
+        if ($users->isEmpty()) {
+            return; // No enviamos nada si no hay otros usuarios
+        }
 
         $this->notificationService->send(
             $users,
-            NotificationType::DOCUMENT_UPLOADED,
+             'document.created',
             [
                 'title' => $document->title,
                 'document_id' => $document->id,

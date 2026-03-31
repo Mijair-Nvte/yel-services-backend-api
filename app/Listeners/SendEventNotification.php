@@ -16,12 +16,19 @@ class SendEventNotification
     public function handle(EventCreated $event): void
     {
         $eventModel = $event->event;
-
         $orgCompanyId = $eventModel->org_company_id;
 
+        
         $users = User::whereHas('companies', function ($q) use ($orgCompanyId) {
             $q->where('org_company_id', $orgCompanyId);
-        })->get();
+        })
+        ->where('id', '!=', auth()->id()) // <-- ESTA LÍNEA ES LA CLAVE
+        ->get();
+
+        // Si solo estaba el creador en la compañía, no enviamos nada
+        if ($users->isEmpty()) {
+            return;
+        }
 
         $this->notificationService->send(
             $users,

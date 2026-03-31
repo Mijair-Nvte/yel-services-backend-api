@@ -29,6 +29,6 @@ class SendNotificationJob implements ShouldQueue
         ]);
 
         // 🔥 Realtime
-        broadcast(new NotificationCreated($notification))->toOthers();
+      event(new NotificationCreated($notification));
     }
 }
