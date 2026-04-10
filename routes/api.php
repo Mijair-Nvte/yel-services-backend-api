@@ -19,9 +19,12 @@ use App\Http\Controllers\Api\OrgCompanyNoticeController;
 use App\Http\Controllers\Api\OrgCompanyUserController;
 use App\Http\Controllers\Api\OrgEventController;
 use App\Http\Controllers\Api\OrgPositionController;
+use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
+
+    Route::post('/webhooks/ghl', [WebhookController::class, 'handleGHL']);
 
     // 🔓 públicas
     Route::post('/register', RegisterController::class);
@@ -95,6 +98,16 @@ Route::prefix('v1')->group(function () {
 
         // dashboard overwiea
         Route::get('/org-companies/{uid}/dashboard', [DashboardController::class, 'overview']);
+
+        // 💰 Ventas y Comisiones
+        Route::get('/org-companies/{uid}/sales', [\App\Http\Controllers\Api\SalesController::class, 'index']);
+        Route::put('/org-companies/{uid}/sales/{saleId}/commission', [\App\Http\Controllers\Api\SalesController::class, 'updateCommission']);
+
+        // 🔗 Mapeo de Payment Links (GHL)
+        Route::get('/org-companies/{uid}/payment-link-mappings', [\App\Http\Controllers\Api\OrgPaymentLinkMappingController::class, 'index']);
+        Route::post('/org-companies/{uid}/payment-link-mappings', [\App\Http\Controllers\Api\OrgPaymentLinkMappingController::class, 'store']);
+        Route::put('/org-companies/{uid}/payment-link-mappings/{mappingUid}', [\App\Http\Controllers\Api\OrgPaymentLinkMappingController::class, 'update']);
+        Route::delete('/org-companies/{uid}/payment-link-mappings/{mappingUid}', [\App\Http\Controllers\Api\OrgPaymentLinkMappingController::class, 'destroy']);
 
         // 📅 Eventos calendario
         Route::get('/org-companies/{uid}/events', [OrgEventController::class, 'index']);
