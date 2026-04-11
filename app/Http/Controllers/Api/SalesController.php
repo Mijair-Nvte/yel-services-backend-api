@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\OrgCompany;
 use App\Models\OrgSale;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log; // <--- Importante para los logs
 
 class SalesController extends Controller
 {
@@ -14,11 +15,9 @@ class SalesController extends Controller
      */
     public function index($uid)
     {
-        // Validar que la compañía exista
         $company = OrgCompany::where('uid', $uid)->firstOrFail();
 
-        // Obtener las ventas e incluir los datos del vendedor (relación 'seller')
-        $sales = OrgSale::with('seller:id,name,email') // Traemos solo id, name y email del vendedor para no saturar
+        $sales = OrgSale::with('seller:id,name,email')
             ->where('org_company_id', $company->id)
             ->orderBy('created_at', 'desc')
             ->get();
@@ -31,9 +30,26 @@ class SalesController extends Controller
      */
     public function updateCommission(Request $request, $uid, $saleId)
     {
-        $request->validate([
-            'commission_status' => 'required|in:pending,paid,not_applicable',
+        // LOG 1: Ver qué datos están llegando desde el Frontend
+        Log::info("Iniciando actualización de comisión", [
+            'company_uid' => $uid,
+            'sale_id' => $saleId,
+            'payload' => $request->all()
         ]);
+
+        try {
+            $request->validate([
+                'commission_status' => 'required|in:pending,paid,not_applicable',
+                'seller_payout_date' => 'nullable|date', 
+                'commission_amount' => 'nullable|numeric|min:0',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // LOG 2: Si la validación falla, ver qué campo dio error
+            Log::error("Error de validación en updateCommission", [
+                'errors' => $e->errors()
+            ]);
+            return response()->json(['errors' => $e->errors()], 422);
+        }
 
         $company = OrgCompany::where('uid', $uid)->firstOrFail();
 
@@ -41,15 +57,22 @@ class SalesController extends Controller
             ->where('id', $saleId)
             ->firstOrFail();
 
-        $sale->update([
+        // LOG 3: Ver el estado antes de la actualización
+        Log::info("Venta encontrada antes de update", ['current_sale' => $sale->toArray()]);
+
+        $updated = $sale->update([
             'commission_status' => $request->commission_status,
+            'seller_payout_date' => $request->seller_payout_date,
+            'commission_amount' => $request->commission_amount ?? $sale->commission_amount,
         ]);
 
-        // Retornamos la venta actualizada con su vendedor
+        // LOG 4: Confirmar si Eloquent dice que se guardó
+        Log::info("Resultado del update", ['success' => $updated]);
+
         $sale->load('seller:id,name,email');
 
         return response()->json([
-            'message' => 'Estatus de comisión actualizado correctamente.',
+            'message' => 'Estatus y fecha de comisión actualizados.',
             'data' => $sale,
         ], 200);
     }

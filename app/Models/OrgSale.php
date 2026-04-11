@@ -22,9 +22,19 @@ class OrgSale extends Model
         'seller_id',
         'commission_amount',
         'commission_status',
+        'seller_payout_date',
         'processor_id',
         'processor_commission_amount',
         'processor_commission_status',
+        'processor_payout_date',
+    ];
+
+    protected $casts = [
+        'seller_payout_date' => 'date',
+        'processor_payout_date' => 'date',
+        'total_amount' => 'decimal:2',
+        'commission_amount' => 'decimal:2',
+        'processor_commission_amount' => 'decimal:2',
     ];
 
     // Autogenerar el UID cuando se crea la venta

@@ -52,7 +52,7 @@ class WebhookController extends Controller
 
         // Variables por defecto (asumimos que es una venta HUÉRFANA al principio)
         $sellerId = null;
-        $commissionAmount = $totalAmount * 0.08; // Calculamos el 8% por si se asigna después
+        $commissionAmount = 0; // Calculamos el 8% por si se asigna después
         $commissionStatus = 'pending';
 
         // 🔍 REGLA 2: Buscar si el link está mapeado a un vendedor en la base de datos
