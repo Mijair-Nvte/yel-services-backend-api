@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Auth\LoginController as AuthLoginController;
 use App\Http\Controllers\Api\Auth\LogoutController as AuthLogoutController;
 use App\Http\Controllers\Api\Auth\MeController as AuthMeController;
 use App\Http\Controllers\Api\Auth\RegisterController;
+use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\FolderController;
@@ -214,6 +215,21 @@ Route::prefix('v1')->group(function () {
             [OrgCompanyNoticeController::class, 'indexArea']
         );
 
+        // 💬 Chat de la Empresa
+        // Listar todos los chats del usuario en la empresa
+        Route::get('/org-companies/{uid}/chats', [ChatController::class, 'index']);
+
+        // Obtener o crear un chat 1 a 1 con otro miembro del equipo
+        Route::get('/org-companies/{uid}/chats/direct/{userId}', [ChatController::class, 'getOrCreateDirect']);
+
+        // Acciones directas sobre la conversación o los mensajes
+        Route::post('/chats/{conversationId}/messages', [ChatController::class, 'sendMessage']);
+        Route::post('/chats/{conversationId}/read', [ChatController::class, 'markAsRead']);
+        Route::delete('/chats/{conversationId}/clear', [ChatController::class, 'clearConversation']);
+        Route::delete('/messages/{messageId}', [ChatController::class, 'deleteMessage']);
+        Route::put('/messages/{messageId}', [ChatController::class, 'updateMessage']);
+       
+       
         // notificaciones
 
         Route::get('/notifications', [NotificationController::class, 'index']);
