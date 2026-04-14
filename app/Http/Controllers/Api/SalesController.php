@@ -114,4 +114,61 @@ class SalesController extends Controller
         // Retornamos el PDF directamente (el frontend lo procesará como archivo)
         return $pdf->download('reporte_ventas.pdf');
     }
+
+    /**
+     * Eliminar el registro de una venta
+     */
+    public function destroy($uid, $saleId)
+    {
+        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+
+        $sale = OrgSale::where('org_company_id', $company->id)
+            ->where('id', $saleId)
+            ->firstOrFail();
+
+        $sale->delete();
+
+        Log::info('Venta eliminada correctamente', ['sale_id' => $saleId]);
+
+        return response()->json(['message' => 'Registro eliminado con éxito.'], 200);
+    }
+
+    /**
+     * Actualizar los detalles generales de una venta
+     */
+    public function update(Request $request, $uid, $saleId)
+    {
+        Log::info('Iniciando actualización general de venta', ['sale_id' => $saleId, 'payload' => $request->all()]);
+
+        $request->validate([
+            'customer_name' => 'required|string|max:255',
+            'customer_email' => 'nullable|email|max:255',
+            'customer_phone' => 'nullable|string|max:50',
+            'product_name' => 'required|string|max:255',
+            'total_amount' => 'required|numeric|min:0',
+            'seller_id' => 'nullable|exists:users,id',
+        ]);
+
+        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+
+        $sale = OrgSale::where('org_company_id', $company->id)
+            ->where('id', $saleId)
+            ->firstOrFail();
+
+        $sale->update([
+            'customer_name' => $request->customer_name,
+            'customer_email' => $request->customer_email,
+            'customer_phone' => $request->customer_phone,
+            'product_name' => $request->product_name,
+            'total_amount' => $request->total_amount,
+            'seller_id' => $request->seller_id,
+        ]);
+
+        $sale->load(['seller:id,name,email', 'processor:id,name,email']);
+
+        return response()->json([
+            'message' => 'Venta actualizada correctamente.',
+            'data' => $sale,
+        ], 200);
+    }
 }

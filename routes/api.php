@@ -104,8 +104,9 @@ Route::prefix('v1')->group(function () {
         // 💰 Ventas y Comisiones
         Route::get('/org-companies/{uid}/sales', [\App\Http\Controllers\Api\SalesController::class, 'index']);
         Route::put('/org-companies/{uid}/sales/{saleId}/commission', [\App\Http\Controllers\Api\SalesController::class, 'updateCommission']);
-
         Route::post('/org-companies/{uid}/sales/export-pdf', [\App\Http\Controllers\Api\SalesController::class, 'exportPdf']);
+        Route::delete('/org-companies/{uid}/sales/{saleId}', [\App\Http\Controllers\Api\SalesController::class, 'destroy']);
+        Route::put('/org-companies/{uid}/sales/{saleId}', [\App\Http\Controllers\Api\SalesController::class, 'update']);
 
         // 🔗 Mapeo de Payment Links (GHL)
         Route::get('/org-companies/{uid}/payment-link-mappings', [\App\Http\Controllers\Api\OrgPaymentLinkMappingController::class, 'index']);
