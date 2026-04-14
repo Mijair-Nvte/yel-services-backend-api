@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
 
     Route::post('/webhooks/ghl', [WebhookController::class, 'handleGHL']);
+    Route::post('/webhooks/ghl/service-form', [WebhookController::class, 'handleServiceForm']);
 
     // 🔓 públicas
     Route::post('/register', RegisterController::class);
@@ -103,6 +104,8 @@ Route::prefix('v1')->group(function () {
         // 💰 Ventas y Comisiones
         Route::get('/org-companies/{uid}/sales', [\App\Http\Controllers\Api\SalesController::class, 'index']);
         Route::put('/org-companies/{uid}/sales/{saleId}/commission', [\App\Http\Controllers\Api\SalesController::class, 'updateCommission']);
+
+        Route::post('/org-companies/{uid}/sales/export-pdf', [\App\Http\Controllers\Api\SalesController::class, 'exportPdf']);
 
         // 🔗 Mapeo de Payment Links (GHL)
         Route::get('/org-companies/{uid}/payment-link-mappings', [\App\Http\Controllers\Api\OrgPaymentLinkMappingController::class, 'index']);
@@ -228,8 +231,7 @@ Route::prefix('v1')->group(function () {
         Route::delete('/chats/{conversationId}/clear', [ChatController::class, 'clearConversation']);
         Route::delete('/messages/{messageId}', [ChatController::class, 'deleteMessage']);
         Route::put('/messages/{messageId}', [ChatController::class, 'updateMessage']);
-       
-       
+
         // notificaciones
 
         Route::get('/notifications', [NotificationController::class, 'index']);

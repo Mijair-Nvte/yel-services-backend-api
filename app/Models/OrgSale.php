@@ -17,6 +17,8 @@ class OrgSale extends Model
         'source_id',
         'customer_name',
         'customer_email',
+        'customer_phone',
+        'customer_origin',
         'product_name',
         'total_amount',
         'seller_id',

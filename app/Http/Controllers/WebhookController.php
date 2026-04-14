@@ -16,6 +16,7 @@ class WebhookController extends Controller
 
         if (! $request->has('order')) {
             Log::warning('El webhook no contiene datos de una orden.');
+
             return response()->json(['message' => 'No order data'], 200);
         }
 
@@ -28,6 +29,7 @@ class WebhookController extends Controller
         if ($sourceType !== 'payment_link') {
             Log::info("⏭️ Venta ignorada. El origen es: {$sourceType} (No aplica comisión).");
             Log::info('-----------------------------------');
+
             return response()->json(['message' => 'Ignored, not a payment link'], 200);
         }
 
@@ -47,6 +49,7 @@ class WebhookController extends Controller
 
         if (! $company) {
             Log::error('No hay compañías registradas en el sistema.');
+
             return response()->json(['message' => 'System error'], 500);
         }
 
@@ -90,11 +93,93 @@ class WebhookController extends Controller
 
         } catch (\Exception $e) {
             Log::error('❌ Error guardando la venta: '.$e->getMessage());
+
             return response()->json(['message' => 'Database error'], 500);
         }
 
         Log::info('-----------------------------------');
 
         return response()->json(['message' => 'Orden procesada y guardada'], 200);
+    }
+
+    // =========================================================================
+    // 2. NUEVO WEBHOOK PARA FORMULARIO DE SERVICIOS COMPLETADOS (WORKFLOW GHL)
+    // =========================================================================
+    public function handleServiceForm(Request $request)
+    {
+        Log::info('--- PROCESANDO FORMULARIO DE SERVICIO GHL ---');
+
+        try {
+            // 1. Datos del Contacto (GHL los pone en la raíz del JSON ahora)
+            // Tomamos el full_name o concatenamos first y last
+            $customerName = $request->input('full_name', $request->input('first_name', 'Cliente Desconocido'));
+            $customerEmail = $request->input('email');
+            $customerPhone = $request->input('phone');
+            $contactId = $request->input('contact_id'); // ¡Excelente! Ya tenemos un ID de origen
+
+            // 2. Datos del Formulario (GHL los esconde dentro de "customData")
+            $customData = $request->input('customData', []);
+
+            $productName = $customData['servicio'] ?? 'Servicio sin nombre';
+            $montoRaw = $customData['monto'] ?? 0;
+            $empleadoEmail = $customData['empleado_email'] ?? null;
+
+            // Documentos pendientes para el futuro
+            $documentosLinks = $customData['documentos_links'] ?? '';
+            $documentosCarpeta = $customData['documentos_carpeta'] ?? '';
+
+            // Limpiamos el monto por si viene con símbolos
+            $totalAmount = preg_replace('/[^0-9.]/', '', $montoRaw);
+            $totalAmount = is_numeric($totalAmount) ? (float) $totalAmount : 0;
+
+            // OBTENER LA COMPAÑÍA
+            $company = OrgCompany::first();
+            if (! $company) {
+                Log::error('❌ Error: No hay compañías registradas en la tabla org_companies.');
+
+                return response()->json(['message' => 'System error'], 500);
+            }
+
+            // 3. BUSCAR AL EMPLEADO/PROCESADOR POR CORREO
+            $processorId = null;
+            if (! empty($empleadoEmail)) {
+                $user = \App\Models\User::where('email', $empleadoEmail)->first();
+                if ($user) {
+                    $processorId = $user->id;
+                    Log::info("✅ Empleado encontrado en BD: {$user->name} (ID: {$processorId})");
+                } else {
+                    Log::warning("⚠️ VENTA HUÉRFANA: No existe usuario en la tabla users con el email: {$empleadoEmail}");
+                }
+            }
+
+            // 4. GUARDAR EN LA TABLA ORG_SALES
+            $sale = OrgSale::create([
+                'org_company_id' => $company->id,
+                'source_type' => 'service_form',
+                'source_id' => $contactId, // Guardamos el ID del contacto de GHL
+                'customer_name' => $customerName,
+                'customer_email' => $customerEmail,
+                'customer_phone' => $customerPhone,
+                'customer_origin' => 'Website Form', // Asignamos un origen genérico por ahora
+                'product_name' => $productName,
+                'total_amount' => $totalAmount,
+                'seller_id' => $processorId,
+                'processor_id' => $processorId,
+                'commission_amount' => 0,
+                'commission_status' => 'pending',
+                'processor_commission_amount' => 0,
+                'processor_commission_status' => 'pending',
+            ]);
+
+            Log::info("💾 Venta guardada correctamente. Sale UID: {$sale->uid} | Monto: $totalAmount");
+            Log::info('--- FIN DEL PROCESO ---');
+
+            return response()->json(['message' => 'Success'], 200);
+
+        } catch (\Exception $e) {
+            Log::error('❌ CRASH EN WEBHOOK: '.$e->getMessage());
+
+            return response()->json(['message' => 'Database error'], 500);
+        }
     }
 }
