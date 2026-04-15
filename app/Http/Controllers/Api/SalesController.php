@@ -102,6 +102,15 @@ class SalesController extends Controller
         $totalAmount = $sales->sum('total_amount');
         $totalCommissions = $sales->sum('commission_amount');
 
+        $logoPath = public_path('assets/img/logo-reportes.png');
+        $logoBase64 = '';
+
+        if (file_exists($logoPath)) {
+            $type = pathinfo($logoPath, PATHINFO_EXTENSION);
+            $data = file_get_contents($logoPath);
+            $logoBase64 = 'data:image/'.$type.';base64,'.base64_encode($data);
+        }
+
         // Generamos el PDF usando una vista Blade
         $pdf = Pdf::loadView('pdf.sales-report', [
             'sales' => $sales,
@@ -109,6 +118,7 @@ class SalesController extends Controller
             'totalAmount' => $totalAmount,
             'totalCommissions' => $totalCommissions,
             'fechaReporte' => now()->format('d/m/Y H:i'),
+            'logoBase64' => $logoBase64,
         ]);
 
         // Retornamos el PDF directamente (el frontend lo procesará como archivo)
