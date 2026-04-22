@@ -97,27 +97,33 @@ class OrgCompanyUserController extends Controller
     }
 
     /**
-     * 👁️ Ver detalle de un miembro del equipo
+     * 👁️ Ver detalle de un miembro del equipo y sus PERMISOS (Spatie)
      */
-    public function show(string $uid, int $id)
+    public function show(string $uid, $id)
     {
         $company = OrgCompany::where('uid', $uid)->firstOrFail();
         $this->authorizeWorkspace($company);
 
         $member = OrgCompanyUser::where('org_company_id', $company->id)
             ->where('id', $id)
-            ->with([
-                'user.profile',
-                'user.areaAssignments.area',
-                'user.areaAssignments.position',
-            ])
+            ->with(['user.profile'])
             ->firstOrFail();
 
-        return response()->json($member);
+        // Configuramos el contexto de Spatie para esta empresa
+        setPermissionsTeamId($company->id);
+
+        return response()->json([
+            'member_info' => $member,
+            'spatie_data' => [
+                'role' => $member->role,
+                // Obtenemos solo los nombres de los permisos activos
+                'active_permissions' => $member->user->getAllPermissions()->pluck('name'),
+            ],
+        ]);
     }
 
     /**
-     * ✏️ Actualizar rol o estado del usuario en la compañía
+     * ✏️ Actualizar Rol y Permisos Granulares (Workspace)
      */
     public function update(Request $request, string $uid, int $id)
     {
@@ -126,18 +132,44 @@ class OrgCompanyUserController extends Controller
 
         $member = OrgCompanyUser::where('org_company_id', $company->id)
             ->where('id', $id)
+            ->with('user')
             ->firstOrFail();
 
         $data = $request->validate([
-            'role' => 'sometimes|string|in:owner,admin,member',
+            // Validamos que el rol sea admin o member (como en tu DB)
+            'role' => 'sometimes|string|in:admin,member',
             'is_active' => 'sometimes|boolean',
+            'permissions' => 'sometimes|array',
         ]);
 
-        $member->update($data);
+        // 1. Actualizar rol base en la tabla de la compañía (org_company_users)
+        if (isset($data['role'])) {
+            $member->update(['role' => $data['role']]);
+        }
 
-        return response()->json($member);
+        // 2. Sincronizar con Spatie (Roles y Permisos del Workspace)
+        if ($member->role !== 'owner') {
+            setPermissionsTeamId($company->id);
+
+            // Mapeamos el rol de la compañía al rol de Spatie (tu DB de Spatie tiene 'admin' y 'user')
+            $spatieRole = ($member->role === 'admin') ? 'admin' : 'user';
+
+            // Asignamos el rol de Spatie
+            $member->user->syncRoles([$spatieRole]);
+
+            // Si envían permisos específicos, los sincronizamos
+            if (isset($data['permissions'])) {
+                $member->user->syncPermissions($data['permissions']);
+            }
+        }
+
+        return response()->json([
+            'message' => 'Accesos y permisos actualizados correctamente',
+            'member' => $member,
+        ]);
     }
 
+    
     /**
      * ❌ Eliminar usuario de la compañía
      * (hard delete)

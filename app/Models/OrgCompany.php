@@ -15,6 +15,7 @@ class OrgCompany extends Model
     protected $table = 'org_companies';
 
     protected $fillable = [
+        'owner_id',
         'uid',
         'name',
         'slug',
@@ -32,9 +33,15 @@ class OrgCompany extends Model
         });
     }
 
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'owner_id');
+    }
+
     public function users()
     {
-        return $this->hasMany(OrgCompanyUser::class);
+        return $this->belongsToMany(User::class, 'org_company_users')
+            ->withTimestamps();
     }
 
     public function areas()

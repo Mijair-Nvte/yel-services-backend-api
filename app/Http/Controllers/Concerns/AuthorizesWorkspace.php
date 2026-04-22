@@ -14,13 +14,20 @@ trait AuthorizesWorkspace
             abort(401, 'Unauthenticated');
         }
 
-        $hasAccess = $user->companies()
+        // El dueño absoluto siempre tiene acceso
+        $isOwner = $company->owner_id === $user->id;
+
+        // O revisamos si es un miembro activo
+        $isMember = $user->companies()
             ->where('org_company_id', $company->id)
             ->where('is_active', true)
             ->exists();
 
-        if (! $hasAccess || ! $company->is_active) {
+        if ((! $isOwner && ! $isMember) || ! $company->is_active) {
             abort(403, 'Unauthorized workspace access');
         }
+
+        // Configuramos el ID de equipo para Spatie globalmente en esta petición
+        setPermissionsTeamId($company->id);
     }
 }

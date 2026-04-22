@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Concerns\AuthorizesWorkspace;
 use App\Http\Controllers\Controller;
 use App\Models\OrgCompany;
-use App\Models\OrgCompanyUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -34,15 +33,20 @@ class OrgCompanyController extends Controller
             'is_active' => 'boolean',
         ]);
 
+        $user = Auth::user(); // Obtenemos al usuario autenticado
         $data['slug'] = Str::slug($data['name']);
+        $data['owner_id'] = $user->id; // <--- Asignamos al dueño legal
 
+        // 1. Creamos la compañía
         $company = OrgCompany::create($data);
 
-        OrgCompanyUser::create([
-            'user_id' => Auth::id(),
-            'org_company_id' => $company->id,
-            'role' => 'owner',
-        ]);
+        // 2. Lo vinculamos como miembro activo (sin el campo 'role')
+        $company->users()->attach($user->id, ['is_active' => true]);
+
+        // 3. Le damos el rol de 'admin' en Spatie dentro de ESTA empresa
+        // Nota: Spatie con multitenancy requiere el ID de la empresa
+        setPermissionsTeamId($company->id);
+        $user->assignRole('admin');
 
         return response()->json($company, 201);
     }
