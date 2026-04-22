@@ -43,9 +43,9 @@ class AppServiceProvider extends ServiceProvider
 
             // 3. Validar si es el Dueño (Owner)
             if ($companyId) {
-                $isOwner = \App\Models\OrgCompanyUser::where('user_id', $user->id)
-                    ->where('org_company_id', $companyId)
-                    ->where('role', 'owner')
+                // NUEVA LÓGICA: Simplemente verificamos si el usuario es el dueño directo de la empresa
+                $isOwner = \App\Models\OrgCompany::where('id', $companyId)
+                    ->where('owner_id', $user->id)
                     ->exists();
 
                 if ($isOwner) {
