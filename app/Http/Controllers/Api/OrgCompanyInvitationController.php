@@ -131,14 +131,20 @@ class OrgCompanyInvitationController extends Controller
             ]
         );
 
-        // Agregar a la compañía
+        // 1. Agregar a la compañía (¡Sin la columna role!)
         OrgCompanyUser::firstOrCreate([
             'user_id' => $user->id,
             'org_company_id' => $invite->org_company_id,
         ], [
-            'role' => $invite->role,
             'is_active' => true,
         ]);
+
+        // 2. Asignar el rol usando Spatie en el contexto de la empresa (Team)
+        // Le decimos a Spatie en qué compañía estamos asignando el rol
+        setPermissionsTeamId($invite->org_company_id);
+
+        // Asignamos el rol ('admin' o 'member')
+        $user->assignRole($invite->role);
 
         // Marcar invitación como aceptada
         $invite->update([
