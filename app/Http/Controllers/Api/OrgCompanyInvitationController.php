@@ -48,7 +48,7 @@ class OrgCompanyInvitationController extends Controller
             'role' => 'required|in:admin,member',
             'org_area_id' => 'nullable|exists:org_areas,id',
             'permissions' => 'nullable|array',
-            'permissions.*' => 'string'
+            'permissions.*' => 'string',
         ]);
 
         /**
@@ -134,7 +134,7 @@ class OrgCompanyInvitationController extends Controller
             ]
         );
 
-        // 1. Agregar a la compañía (¡Sin la columna role!)
+        // 1. Agregar a la compañía
         OrgCompanyUser::firstOrCreate([
             'user_id' => $user->id,
             'org_company_id' => $invite->org_company_id,
@@ -142,16 +142,28 @@ class OrgCompanyInvitationController extends Controller
             'is_active' => true,
         ]);
 
-        // 2. Asignar el rol y los permisos usando Spatie en el contexto de la empresa (Team)
+        // 2. Asignar el rol y los permisos en el contexto de la empresa (Team)
         setPermissionsTeamId($invite->org_company_id);
 
-        // Asignamos el rol ('admin' o 'member')
         $user->assignRole($invite->role);
 
-        // 🔥 MAGIA: Asignar permisos específicos si es 'member' y trae permisos en la invitación
-        if ($invite->role !== 'admin' && !empty($invite->permissions)) {
-            $user->syncPermissions($invite->permissions);
+        // 🔥 MAGIA REPARADA: Asignar permisos específicos
+        if ($invite->role !== 'admin' && ! empty($invite->permissions)) {
+
+            // 1. Aseguramos 100% que sea un array manejable (a veces Laravel Eloquent lo deja como string JSON en memoria)
+            $permissionsList = is_string($invite->permissions)
+                ? json_decode($invite->permissions, true)
+                : $invite->permissions;
+
+            if (is_array($permissionsList) && count($permissionsList) > 0) {
+                // 2. Usamos givePermissionTo (es más directo y seguro que syncPermissions para agregar)
+                $user->givePermissionTo($permissionsList);
+            }
         }
+
+        // 🧹 3. FORZAR LA LIMPIEZA DE CACHÉ DE SPATIE
+        // Esto es clave para que si el usuario hace login de inmediato o consulta /my-permissions, vea los cambios.
+        app()->make(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
 
         // Marcar invitación como aceptada
         $invite->update([
