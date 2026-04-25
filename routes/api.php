@@ -19,8 +19,11 @@ use App\Http\Controllers\Api\OrgCompanyLinkController;
 use App\Http\Controllers\Api\OrgCompanyNoticeController;
 use App\Http\Controllers\Api\OrgCompanyUserController;
 use App\Http\Controllers\Api\OrgEventController;
+use App\Http\Controllers\Api\OrgMemberAccessController;
 use App\Http\Controllers\Api\OrgMemberController;
+use App\Http\Controllers\Api\OrgPaymentLinkMappingController;
 use App\Http\Controllers\Api\OrgPositionController;
+use App\Http\Controllers\Api\SalesController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -76,130 +79,173 @@ Route::prefix('v1')->group(function () {
                 ]);
             });
 
-            // ⚙️ Gestión de la Compañía (Requiere manage_team o un permiso admin)
-            Route::middleware('can:manage_team')->group(function () {
-                // Cambiar rol de un usuario
-                Route::put('/members/{id}/role', [OrgMemberController::class, 'updateRole']);
-
-                // Obtener lista de roles disponibles (para el Select de la UI)
-                Route::get('/roles-list', [OrgMemberController::class, 'getAvailableRoles']);
-
-                Route::put('/', [OrgCompanyController::class, 'update']);
-                Route::delete('/', [OrgCompanyController::class, 'destroy']);
-                Route::post('/invitations', [OrgCompanyInvitationController::class, 'store']);
-            });
+            // ==========================================
+            // 👑 CONFIGURACIÓN RAÍZ DE LA COMPAÑÍA (Lógica de seguridad en el Controlador)
+            // ==========================================
+            // Estas rutas NO llevan middleware 'can' porque validaremos al 'Owner' internamente
+            Route::put('/', [OrgCompanyController::class, 'update']);
+            Route::delete('/', [OrgCompanyController::class, 'destroy']);
 
             // 📊 Dashboard
             Route::get('/dashboard', [DashboardController::class, 'overview'])->middleware('can:view_dashboard');
 
-            // 🧩 Áreas
-            Route::get('/areas', [OrgAreaController::class, 'index'])->middleware('can:view_areas');
-            Route::post('/areas', [OrgAreaController::class, 'store'])->middleware('can:manage_areas');
-            Route::get('/areas/{areaUid}/notices', [OrgCompanyNoticeController::class, 'indexArea'])->middleware('can:view_notices');
+            // ==========================================
+            // 👁️ VISTA DEL EQUIPO (Requiere view_team)
+            // ==========================================
+            Route::middleware('can:view_team')->group(function () {
+                Route::get('/members', [OrgMemberController::class, 'index']);
+                Route::get('/members/{id}', [OrgMemberController::class, 'show']);
+                Route::get('/team', [OrgCompanyUserController::class, 'index']);
+                Route::get('/team/{id}', [OrgCompanyUserController::class, 'show']);
+                Route::get('/positions', [OrgPositionController::class, 'index']);
+            });
 
-            // 👥 Equipo y Roles
+            // ==========================================
+            // ⚙️ GESTIÓN Y ADMINISTRACIÓN (Requiere manage_team)
+            // ==========================================
+            Route::middleware('can:manage_team')->group(function () {
+
+                // --- 2. Invitaciones ---
+                Route::post('/invitations', [OrgCompanyInvitationController::class, 'store']);
+
+                // --- 3. Miembros, Roles y Permisos (Seguridad) ---
+                Route::get('/roles-list', [OrgMemberController::class, 'getAvailableRoles']);
+                Route::put('/members/{id}', [OrgMemberController::class, 'update']);
+                Route::delete('/members/{id}', [OrgMemberController::class, 'destroy']);
+                Route::patch('/members/{id}/toggle-permission', [OrgMemberAccessController::class, 'togglePermission']);
+
+                // --- 4. Equipo Interno y Posiciones (Estructura Organizacional) ---
+                Route::post('/team', [OrgCompanyUserController::class, 'store']);
+                Route::put('/team/{id}', [OrgCompanyUserController::class, 'update']);
+                Route::delete('/team/{id}', [OrgCompanyUserController::class, 'destroy']);
+
+                Route::post('/positions', [OrgPositionController::class, 'store']);
+                Route::delete('/positions/{id}', [OrgPositionController::class, 'destroy']);
+
+            });
+
+            // 👥 Equipo y Roles de una compania 
             Route::get('/team', [OrgCompanyUserController::class, 'index'])->middleware('can:view_team');
             Route::get('/team/{id}', [OrgCompanyUserController::class, 'show'])->middleware('can:view_team');
             Route::get('/positions', [OrgPositionController::class, 'index'])->middleware('can:view_team');
 
-            Route::get('/members', [OrgMemberController::class, 'index'])->middleware('can:view_team');
-            Route::get('/members/{id}', [OrgMemberController::class, 'show'])->middleware('can:view_team');
+            // 💰 VENTAS / SALES
+            Route::group([], function () {
+                // Ver Ventas
+                Route::get('/sales', [SalesController::class, 'index'])->middleware('can:view_sales');
 
-            Route::middleware('can:manage_team')->group(function () {
-
-                Route::put('/members/{id}', [OrgMemberController::class, 'update']);
-                Route::delete('/members/{id}', [OrgMemberController::class, 'destroy']);
-
-                Route::post('/team', [OrgCompanyUserController::class, 'store']);
-                Route::put('/team/{id}', [OrgCompanyUserController::class, 'update']);
-                Route::delete('/team/{id}', [OrgCompanyUserController::class, 'destroy']);
-                Route::post('/positions', [OrgPositionController::class, 'store']);
-                Route::delete('/positions/{id}', [OrgPositionController::class, 'destroy']);
+                // Gestionar Ventas
+                Route::middleware('can:manage_sales')->group(function () {
+                    Route::put('/sales/{saleId}/commission', [SalesController::class, 'updateCommission']);
+                    Route::post('/sales/export-pdf', [SalesController::class, 'exportPdf']);
+                    Route::put('/sales/{saleId}', [SalesController::class, 'update']);
+                    Route::delete('/sales/{saleId}', [SalesController::class, 'destroy']);
+                });
             });
 
-            // 💰 Ventas
-            Route::get('/sales', [\App\Http\Controllers\Api\SalesController::class, 'index'])->middleware('can:view_sales');
-            Route::middleware('can:manage_sales')->group(function () {
-                Route::put('/sales/{saleId}/commission', [\App\Http\Controllers\Api\SalesController::class, 'updateCommission']);
-                Route::post('/sales/export-pdf', [\App\Http\Controllers\Api\SalesController::class, 'exportPdf']);
-                Route::put('/sales/{saleId}', [\App\Http\Controllers\Api\SalesController::class, 'update']);
-                Route::delete('/sales/{saleId}', [\App\Http\Controllers\Api\SalesController::class, 'destroy']);
+            // 🔗 Payment Links GHL (Dentro de Route::prefix('org-companies/{uid}'))
+            Route::group([], function () {
+                // Ver Mapeos
+                Route::get('/payment-link-mappings', [OrgPaymentLinkMappingController::class, 'index'])->middleware('can:view_payment_links');
+
+                // Gestionar Mapeos
+                Route::middleware('can:manage_payment_links')->group(function () {
+                    Route::post('/payment-link-mappings', [OrgPaymentLinkMappingController::class, 'store']);
+                    Route::put('/payment-link-mappings/{mappingUid}', [OrgPaymentLinkMappingController::class, 'update']);
+                    Route::delete('/payment-link-mappings/{mappingUid}', [OrgPaymentLinkMappingController::class, 'destroy']);
+                });
             });
 
-            // 🔗 Payment Links GHL
-            Route::get('/payment-link-mappings', [\App\Http\Controllers\Api\OrgPaymentLinkMappingController::class, 'index'])->middleware('can:view_payment_links');
-            Route::middleware('can:manage_payment_links')->group(function () {
-                Route::post('/payment-link-mappings', [\App\Http\Controllers\Api\OrgPaymentLinkMappingController::class, 'store']);
-                Route::put('/payment-link-mappings/{mappingUid}', [\App\Http\Controllers\Api\OrgPaymentLinkMappingController::class, 'update']);
-                Route::delete('/payment-link-mappings/{mappingUid}', [\App\Http\Controllers\Api\OrgPaymentLinkMappingController::class, 'destroy']);
+            // 📅 EVENTOS / CALENDARIO (Bloque Unificado)
+            Route::group([], function () {
+                // Ver Calendario
+                Route::middleware('can:view_calendar')->group(function () {
+                    Route::get('/events', [OrgEventController::class, 'index']);
+                    Route::get('/events/{eventUid}', [OrgEventController::class, 'show']);
+                });
+
+                // Gestionar Calendario
+                Route::middleware('can:manage_calendar')->group(function () {
+                    Route::post('/events', [OrgEventController::class, 'store']);
+                    Route::put('/events/{eventUid}', [OrgEventController::class, 'update']);
+                    Route::delete('/events/{eventUid}', [OrgEventController::class, 'destroy']);
+                });
             });
 
-            // 📅 Eventos / Calendario
-            Route::get('/events', [OrgEventController::class, 'index'])->middleware('can:view_calendar');
-            Route::get('/events/{eventUid}', [OrgEventController::class, 'show'])->middleware('can:view_calendar');
-            Route::middleware('can:manage_calendar')->group(function () {
-                Route::post('/events', [OrgEventController::class, 'store']);
-                Route::put('/events/{eventUid}', [OrgEventController::class, 'update']);
-                Route::delete('/events/{eventUid}', [OrgEventController::class, 'destroy']);
+            // 📢 AVISOS / NOTICES (BLOQUE UNIFICADO)
+            Route::group([], function () {
+                // Ver Avisos
+                Route::middleware('can:view_notices')->group(function () {
+                    Route::get('/notices', [OrgCompanyNoticeController::class, 'index']);
+                    Route::get('/notices/{noticeUid}', [OrgCompanyNoticeController::class, 'show']);
+                    Route::get('/areas/{areaUid}/notices', [OrgCompanyNoticeController::class, 'indexArea']);
+                });
+
+                // Gestionar Avisos
+                Route::middleware('can:manage_notices')->group(function () {
+                    Route::post('/notices', [OrgCompanyNoticeController::class, 'store']);
+                    Route::put('/notices/{noticeUid}', [OrgCompanyNoticeController::class, 'update']);
+                    Route::delete('/notices/{noticeUid}', [OrgCompanyNoticeController::class, 'destroy']);
+                    Route::post('/notices/{noticeUid}/pin', [OrgCompanyNoticeController::class, 'pin']);
+                    Route::post('/notices/{noticeUid}/unpin', [OrgCompanyNoticeController::class, 'unpin']);
+                });
             });
 
-            // 📢 Avisos / Notices
-            Route::get('/notices', [OrgCompanyNoticeController::class, 'index'])->middleware('can:view_notices');
-            Route::post('/notices', [OrgCompanyNoticeController::class, 'store'])->middleware('can:manage_notices');
+            // ==========================================
+            // 🌐 ENLACES DE LA COMPAÑÍA (Link Block)
+            // ==========================================
+            Route::group([], function () {
+                // Ver Enlaces
+                Route::middleware('can:view_company_links')->group(function () {
+                    Route::get('/links', [OrgCompanyLinkController::class, 'index']);
+                    Route::get('/links/{linkUid}', [OrgCompanyLinkController::class, 'show']);
+                });
 
-            // 🌐 Links de la Compañía
-            Route::get('/links', [OrgCompanyLinkController::class, 'index'])->middleware('can:view_company_links');
-            Route::post('/links', [OrgCompanyLinkController::class, 'store'])->middleware('can:manage_company_links');
+                // Gestionar Enlaces
+                Route::middleware('can:manage_company_links')->group(function () {
+                    Route::post('/links', [OrgCompanyLinkController::class, 'store']);
+                    Route::put('/links/{linkUid}', [OrgCompanyLinkController::class, 'update']);
+                    Route::delete('/links/{linkUid}', [OrgCompanyLinkController::class, 'destroy']);
+                });
+            });
 
-            // 💬 Chat
-            Route::get('/chats', [ChatController::class, 'index'])->middleware('can:access_chat');
-            Route::get('/chats/direct/{userId}', [ChatController::class, 'getOrCreateDirect'])->middleware('can:access_chat');
+            // 🧩 ÁREAS / DEPARTAMENTOS (Bloque Unificado)
+            Route::group([], function () {
+                // Ver Áreas
+                Route::middleware('can:view_areas')->group(function () {
+                    Route::get('/areas', [OrgAreaController::class, 'index']);
+                    Route::get('/areas/{areaUid}', [OrgAreaController::class, 'show']);
+                    Route::get('/areas/{areaUid}/team', [OrgAreaUserRoleController::class, 'byArea'])->middleware('can:view_team');
+                    Route::get('/areas/{areaUid}/notices', [OrgCompanyNoticeController::class, 'indexArea'])->middleware('can:view_notices');
+                });
+
+                // Gestionar Áreas
+                Route::middleware('can:manage_areas')->group(function () {
+                    Route::post('/areas', [OrgAreaController::class, 'store']);
+                    Route::put('/areas/{areaUid}', [OrgAreaController::class, 'update']);
+                    Route::delete('/areas/{areaUid}', [OrgAreaController::class, 'destroy']);
+
+                    Route::post('/area-assignments', [OrgAreaUserRoleController::class, 'store']);
+                    Route::delete('/area-assignments/{id}', [OrgAreaUserRoleController::class, 'destroy']);
+                });
+            });
+
+            // 💬 Chat (Bloque Unificado y Protegido)
+            Route::group([], function () {
+                Route::get('/chats', [ChatController::class, 'index']);
+                Route::get('/chats/direct/{userId}', [ChatController::class, 'getOrCreateDirect']);
+                Route::post('/chats/{conversationId}/messages', [ChatController::class, 'sendMessage']);
+                Route::post('/chats/{conversationId}/read', [ChatController::class, 'markAsRead']);
+                Route::delete('/chats/{conversationId}/clear', [ChatController::class, 'clearConversation']);
+                Route::put('/messages/{messageId}', [ChatController::class, 'updateMessage']);
+                Route::delete('/messages/{messageId}', [ChatController::class, 'deleteMessage']);
+            });
+
         });
 
         // ========================================================================
         // 🔄 RUTAS SECUNDARIAS (Endpoints directos por UID que no llevan el prefijo de la compañía)
         // ========================================================================
-
-        // 🧩 Áreas y Asignaciones
-        Route::get('/org-areas/{uid}', [OrgAreaController::class, 'show'])->middleware('can:view_areas');
-        Route::get('/org-areas/{uid}/team', [OrgAreaUserRoleController::class, 'byArea'])->middleware('can:view_team');
-        Route::middleware('can:manage_areas')->group(function () {
-            Route::put('/org-areas/{uid}', [OrgAreaController::class, 'update']);
-            Route::delete('/org-areas/{uid}', [OrgAreaController::class, 'destroy']);
-        });
-
-        Route::get('/org-area-user-roles', [OrgAreaUserRoleController::class, 'index'])->middleware('can:view_team');
-        Route::get('/org-area-user-roles/{id}', [OrgAreaUserRoleController::class, 'show'])->middleware('can:view_team');
-        Route::middleware('can:manage_team')->group(function () {
-            Route::post('/org-area-user-roles', [OrgAreaUserRoleController::class, 'store']);
-            Route::put('/org-area-user-roles/{id}', [OrgAreaUserRoleController::class, 'update']);
-            Route::delete('/org-area-user-roles/{id}', [OrgAreaUserRoleController::class, 'destroy']);
-        });
-
-        // 📢 Avisos Directos
-        Route::get('/org-company-notices/{uid}', [OrgCompanyNoticeController::class, 'show'])->middleware('can:view_notices');
-        Route::middleware('can:manage_notices')->group(function () {
-            Route::put('/org-company-notices/{uid}', [OrgCompanyNoticeController::class, 'update']);
-            Route::delete('/org-company-notices/{uid}', [OrgCompanyNoticeController::class, 'destroy']);
-            Route::post('/org-company-notices/{uid}/pin', [OrgCompanyNoticeController::class, 'pin']);
-            Route::post('/org-company-notices/{uid}/unpin', [OrgCompanyNoticeController::class, 'unpin']);
-        });
-
-        // 🌐 Links Directos
-        Route::get('/org-company-links/{uid}', [OrgCompanyLinkController::class, 'show'])->middleware('can:view_company_links');
-        Route::middleware('can:manage_company_links')->group(function () {
-            Route::put('/org-company-links/{uid}', [OrgCompanyLinkController::class, 'update']);
-            Route::delete('/org-company-links/{uid}', [OrgCompanyLinkController::class, 'destroy']);
-        });
-
-        // 💬 Chat Acciones
-        Route::middleware('can:access_chat')->group(function () {
-            Route::post('/chats/{conversationId}/messages', [ChatController::class, 'sendMessage']);
-            Route::post('/chats/{conversationId}/read', [ChatController::class, 'markAsRead']);
-            Route::delete('/chats/{conversationId}/clear', [ChatController::class, 'clearConversation']);
-            Route::put('/messages/{messageId}', [ChatController::class, 'updateMessage']);
-            Route::delete('/messages/{messageId}', [ChatController::class, 'deleteMessage']);
-        });
 
         // 🔔 Notificaciones (Globales del usuario)
         Route::get('/notifications', [NotificationController::class, 'index']);

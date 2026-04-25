@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesWorkspace;
+use App\Http\Controllers\Controller;
 use App\Models\Document;
 use App\Models\Folder;
 use App\Models\OrgCompany;
@@ -11,153 +11,154 @@ use App\Models\OrgCompanyNotice;
 use App\Models\OrgCompanyUser;
 use App\Models\OrgEvent;
 use Carbon\Carbon;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class DashboardController extends Controller
 {
-    use AuthorizesWorkspace;
+    use AuthorizesRequests, AuthorizesWorkspace;
 
     public function overview(string $uid)
     {
-        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+        try {
+            $company = OrgCompany::where('uid', $uid)->firstOrFail();
 
-        $this->authorizeWorkspace($company);
+            // 🔐 1. Validar si pertenece a la empresa
+            $this->authorizeWorkspace($company);
 
-        $now = Carbon::now();
+            // 🔐 2. Validar si tiene el permiso específico de ver el dashboard
+            $this->authorize('view_dashboard');
 
-        /*
-        |--------------------------------------------------------------------------
-        | USERS
-        |--------------------------------------------------------------------------
-        */
+            $now = Carbon::now();
 
-        $totalUsers = OrgCompanyUser::where('org_company_id', $company->id)
-            ->where('is_active', true)
-            ->count();
+            /*
+            |--------------------------------------------------------------------------
+            | USERS
+            |--------------------------------------------------------------------------
+            */
+            $totalUsers = OrgCompanyUser::where('org_company_id', $company->id)
+                ->where('is_active', true)
+                ->count();
 
-        /*
-        |--------------------------------------------------------------------------
-        | EVENTS
-        |--------------------------------------------------------------------------
-        */
+            /*
+            |--------------------------------------------------------------------------
+            | EVENTS
+            |--------------------------------------------------------------------------
+            */
+            $totalEvents = OrgEvent::where('org_company_id', $company->id)->count();
 
-        $totalEvents = OrgEvent::where('org_company_id', $company->id)->count();
+            $eventsThisMonth = OrgEvent::where('org_company_id', $company->id)
+                ->whereMonth('starts_at', $now->month)
+                ->whereYear('starts_at', $now->year)
+                ->count();
 
-        $eventsThisMonth = OrgEvent::where('org_company_id', $company->id)
-            ->whereMonth('starts_at', $now->month)
-            ->whereYear('starts_at', $now->year)
-            ->count();
+            $upcomingEvents = OrgEvent::where('org_company_id', $company->id)
+                ->where('starts_at', '>=', $now)
+                ->orderBy('starts_at')
+                ->limit(5)
+                ->get([
+                    'uid',
+                    'title',
+                    'starts_at',
+                    'ends_at',
+                    'color',
+                    'location',
+                ]);
 
-        $upcomingEvents = OrgEvent::where('org_company_id', $company->id)
-            ->where('starts_at', '>=', $now)
-            ->orderBy('starts_at')
-            ->limit(5)
-            ->get([
-                'uid',
-                'title',
-                'starts_at',
-                'ends_at',
-                'color',
-                'location'
-            ]);
+            /*
+            |--------------------------------------------------------------------------
+            | DOCUMENTS
+            |--------------------------------------------------------------------------
+            */
+            $totalDocuments = Document::count();
 
-        /*
-        |--------------------------------------------------------------------------
-        | DOCUMENTS
-        |--------------------------------------------------------------------------
-        */
+            $documentsThisMonth = Document::whereMonth('created_at', $now->month)
+                ->whereYear('created_at', $now->year)
+                ->count();
 
-        $totalDocuments = Document::count();
+            $recentDocuments = Document::latest()
+                ->limit(5)
+                ->get([
+                    'uid',
+                    'title',
+                    'file_name',
+                    'created_at',
+                ]);
 
-        $documentsThisMonth = Document::whereMonth('created_at', $now->month)
-            ->whereYear('created_at', $now->year)
-            ->count();
+            /*
+            |--------------------------------------------------------------------------
+            | FOLDERS
+            |--------------------------------------------------------------------------
+            */
+            $totalFolders = Folder::count();
 
-        $recentDocuments = Document::latest()
-            ->limit(5)
-            ->get([
-                'uid',
-                'title',
-                'file_name',
-                'created_at'
-            ]);
+            /*
+            |--------------------------------------------------------------------------
+            | NOTICES
+            |--------------------------------------------------------------------------
+            */
+            $totalNotices = OrgCompanyNotice::where('org_company_id', $company->id)
+                ->count();
 
-        /*
-        |--------------------------------------------------------------------------
-        | FOLDERS
-        |--------------------------------------------------------------------------
-        */
+            $activeNotices = OrgCompanyNotice::where('org_company_id', $company->id)
+                ->where('is_active', true)
+                ->count();
 
-        $totalFolders = Folder::count();
+            $pinnedNotices = OrgCompanyNotice::where('org_company_id', $company->id)
+                ->where('is_pinned', true)
+                ->count();
 
-        /*
-        |--------------------------------------------------------------------------
-        | NOTICES
-        |--------------------------------------------------------------------------
-        */
+            $recentNotices = OrgCompanyNotice::where('org_company_id', $company->id)
+                ->where('is_active', true)
+                ->orderByDesc('created_at')
+                ->limit(5)
+                ->get([
+                    'uid',
+                    'title',
+                    'notice_level_id',
+                    'created_at',
+                ]);
 
-        $totalNotices = OrgCompanyNotice::where('org_company_id', $company->id)
-            ->count();
+            $pinnedNoticeList = OrgCompanyNotice::where('org_company_id', $company->id)
+                ->where('is_pinned', true)
+                ->orderByDesc('pinned_until')
+                ->limit(3)
+                ->get([
+                    'uid',
+                    'title',
+                    'pinned_until',
+                ]);
 
-        $activeNotices = OrgCompanyNotice::where('org_company_id', $company->id)
-            ->where('is_active', true)
-            ->count();
+            /*
+            |--------------------------------------------------------------------------
+            | RESPONSE
+            |--------------------------------------------------------------------------
+            */
+            return response()->json([
+                'stats' => [
+                    'users' => $totalUsers,
+                    'events_total' => $totalEvents,
+                    'events_this_month' => $eventsThisMonth,
+                    'documents_total' => $totalDocuments,
+                    'documents_this_month' => $documentsThisMonth,
+                    'folders_total' => $totalFolders,
+                    'notices_total' => $totalNotices,
+                    'notices_active' => $activeNotices,
+                    'notices_pinned' => $pinnedNotices,
+                ],
+                'upcoming_events' => $upcomingEvents,
+                'recent_documents' => $recentDocuments,
+                'recent_notices' => $recentNotices,
+                'pinned_notices' => $pinnedNoticeList,
+            ], 200);
 
-        $pinnedNotices = OrgCompanyNotice::where('org_company_id', $company->id)
-            ->where('is_pinned', true)
-            ->count();
-
-        $recentNotices = OrgCompanyNotice::where('org_company_id', $company->id)
-            ->where('is_active', true)
-            ->orderByDesc('created_at')
-            ->limit(5)
-            ->get([
-                'uid',
-                'title',
-                'notice_level_id',
-                'created_at'
-            ]);
-
-        $pinnedNoticeList = OrgCompanyNotice::where('org_company_id', $company->id)
-            ->where('is_pinned', true)
-            ->orderByDesc('pinned_until')
-            ->limit(3)
-            ->get([
-                'uid',
-                'title',
-                'pinned_until'
-            ]);
-
-        /*
-        |--------------------------------------------------------------------------
-        | RESPONSE
-        |--------------------------------------------------------------------------
-        */
-
-        return response()->json([
-            'stats' => [
-
-                'users' => $totalUsers,
-
-                'events_total' => $totalEvents,
-                'events_this_month' => $eventsThisMonth,
-
-                'documents_total' => $totalDocuments,
-                'documents_this_month' => $documentsThisMonth,
-
-                'folders_total' => $totalFolders,
-
-                'notices_total' => $totalNotices,
-                'notices_active' => $activeNotices,
-                'notices_pinned' => $pinnedNotices,
-            ],
-
-            'upcoming_events' => $upcomingEvents,
-
-            'recent_documents' => $recentDocuments,
-
-            'recent_notices' => $recentNotices,
-
-            'pinned_notices' => $pinnedNoticeList,
-        ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['message' => 'Company not found.'], 404);
+        } catch (AuthorizationException $e) {
+            return response()->json(['message' => 'Unauthorized access. You do not have permission to view the dashboard.'], 403);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'An error occurred while loading the dashboard.', 'error' => $e->getMessage()], 500);
+        }
     }
 }

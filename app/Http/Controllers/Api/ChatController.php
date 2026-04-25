@@ -13,25 +13,24 @@ use Illuminate\Support\Facades\DB;
 
 class ChatController extends Controller
 {
-    // 1. Listar todos los chats del usuario en la empresa actual
+    /**
+     * 1. Listar chats del usuario en la empresa actual
+     */
     public function index($uid)
     {
         $company = OrgCompany::where('uid', $uid)->firstOrFail();
-        $user = request()->user();
+        $user = auth()->user();
 
         $conversations = ChatConversation::where('org_company_id', $company->id)
             ->whereHas('participants', function ($query) use ($user) {
                 $query->where('user_id', $user->id);
             })
             ->with([
-                // 🔥 Cargamos participantes -> usuario -> perfil (para el avatar_url)
                 'participants.user' => function ($q) {
                     $q->select('id', 'name', 'email')->with('profile:user_id,avatar');
                 },
-                // ✅ Mantenemos el último mensaje para la vista previa
                 'lastMessage',
             ])
-            // Ordenamos por los chats que tienen actividad más reciente
             ->orderByDesc(
                 ChatMessage::select('created_at')
                     ->whereColumn('chat_conversation_id', 'chat_conversations.id')
@@ -43,16 +42,19 @@ class ChatController extends Controller
         return response()->json($conversations);
     }
 
-    // 2. Obtener un chat 1a1 existente o crearlo si es la primera vez que hablan
+    /**
+     * 2. Obtener o Crear chat 1a1 (Contextual)
+     */
     public function getOrCreateDirect($uid, $targetUserId)
     {
         $company = OrgCompany::where('uid', $uid)->firstOrFail();
-        $user = request()->user();
+        $user = auth()->user();
 
         if ($user->id == $targetUserId) {
             return response()->json(['message' => 'No puedes crear un chat contigo mismo'], 400);
         }
 
+        // Buscamos la conversación en esta empresa específica
         $conversation = ChatConversation::where('org_company_id', $company->id)
             ->where('type', 'direct')
             ->whereHas('participants', function ($query) use ($user) {
@@ -64,16 +66,29 @@ class ChatController extends Controller
             ->first();
 
         if (! $conversation) {
-            DB::transaction(function () use (&$conversation, $company, $user, $targetUserId) {
-                $conversation = ChatConversation::create([
-                    'org_company_id' => $company->id,
+            $conversation = DB::transaction(function () use ($company, $user, $targetUserId) {
+                $conv = ChatConversation::create([
+                    'org_company_id' => $company->id, // Ya lo tenías
                     'type' => 'direct',
                 ]);
 
+                // AHORA: Insertamos con el org_company_id
                 ChatParticipant::insert([
-                    ['chat_conversation_id' => $conversation->id, 'user_id' => $user->id, 'created_at' => now(), 'updated_at' => now()],
-                    ['chat_conversation_id' => $conversation->id, 'user_id' => $targetUserId, 'created_at' => now(), 'updated_at' => now()],
+                    [
+                        'org_company_id' => $company->id,
+                        'chat_conversation_id' => $conv->id,
+                        'user_id' => $user->id,
+                        'created_at' => now(), 'updated_at' => now(),
+                    ],
+                    [
+                        'org_company_id' => $company->id,
+                        'chat_conversation_id' => $conv->id,
+                        'user_id' => $targetUserId,
+                        'created_at' => now(), 'updated_at' => now(),
+                    ],
                 ]);
+
+                return $conv;
             });
         }
 
@@ -90,7 +105,6 @@ class ChatController extends Controller
             ->paginate(50);
 
         return response()->json([
-            // 🔥 También aquí cargamos el perfil para que el Header del chat tenga foto
             'conversation' => $conversation->load(['participants.user' => function ($q) {
                 $q->select('id', 'name', 'email')->with('profile:user_id,avatar');
             }]),
@@ -98,27 +112,30 @@ class ChatController extends Controller
         ]);
     }
 
-    // 3. Enviar un mensaje
-    public function sendMessage(Request $request, $conversationId)
+    /**
+     * 3. Enviar mensaje
+     */
+    public function sendMessage(Request $request, $uid, $conversationId)
     {
         $request->validate(['body' => 'required|string']);
-        $user = request()->user();
+        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+        $user = auth()->user();
 
-        // Validar que el usuario pertenezca a esta conversación
+        // Filtramos por empresa para seguridad máxima
         $participant = ChatParticipant::where('chat_conversation_id', $conversationId)
             ->where('user_id', $user->id)
+            ->where('org_company_id', $company->id)
             ->firstOrFail();
 
         $message = ChatMessage::create([
+            'org_company_id' => $company->id,
             'chat_conversation_id' => $conversationId,
             'sender_id' => $user->id,
             'body' => $request->body,
         ]);
 
-        // Auto-marcar como leído para el que lo envía
         $participant->update(['last_read_message_id' => $message->id]);
 
-        // 🔥 Disparar el evento de Websockets hacia el Frontend
         broadcast(new MessageSent($message))->toOthers();
 
         return response()->json($message->load('sender:id,name'), 201);

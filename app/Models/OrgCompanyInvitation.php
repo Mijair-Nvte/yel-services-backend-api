@@ -12,6 +12,7 @@ class OrgCompanyInvitation extends Model
         'org_area_id',
         'email',
         'role',
+        'permissions',
         'token',
         'expires_at',
         'accepted_at',
@@ -20,6 +21,7 @@ class OrgCompanyInvitation extends Model
     protected $casts = [
         'expires_at' => 'datetime',
         'accepted_at' => 'datetime',
+        'permissions' => 'array',
     ];
 
     /**

@@ -2,35 +2,47 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Concerns\AuthorizesWorkspace;
 use App\Http\Controllers\Controller;
 use App\Models\OrgCompany;
 use App\Models\OrgSale;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class SalesController extends Controller
 {
+    use AuthorizesRequests, AuthorizesWorkspace;
+
     /**
      * Listar todas las ventas de un Workspace
      */
-    public function index($uid)
+    public function index(string $uid)
     {
-        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+        try {
+            $company = OrgCompany::where('uid', $uid)->firstOrFail();
 
-        // 🟢 CAMBIO AQUÍ: Agregamos el 'processor' a la carga de relaciones (Eager Loading)
-        $sales = OrgSale::with(['seller:id,name,email', 'processor:id,name,email'])
-            ->where('org_company_id', $company->id)
-            ->orderBy('created_at', 'desc')
-            ->get();
+            // 🛡️ Doble Capa de Seguridad
+            $this->authorizeWorkspace($company);
+            $this->authorize('view_sales');
 
-        return response()->json(['data' => $sales], 200);
+            $sales = OrgSale::with(['seller:id,name,email', 'processor:id,name,email'])
+                ->where('org_company_id', $company->id)
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return response()->json(['data' => $sales], 200);
+
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al listar ventas.', 'error' => $e->getMessage()], 500);
+        }
     }
 
     /**
      * Actualizar el estatus de la comisión de una venta específica
      */
-    public function updateCommission(Request $request, $uid, $saleId)
+    public function updateCommission(Request $request, string $uid, $saleId)
     {
         Log::info('Iniciando actualización de comisión', [
             'company_uid' => $uid,
@@ -39,146 +51,162 @@ class SalesController extends Controller
         ]);
 
         try {
+            $company = OrgCompany::where('uid', $uid)->firstOrFail();
+            $this->authorizeWorkspace($company);
+            $this->authorize('manage_sales');
+
             $request->validate([
                 'commission_status' => 'required|in:pending,paid,not_applicable',
                 'seller_payout_date' => 'nullable|date',
                 'commission_amount' => 'nullable|numeric|min:0',
-                // Si en el futuro quieres actualizar desde el frontend también la comisión del procesador,
-                // puedes agregar aquí las reglas de validación para 'processor_commission_status', etc.
             ]);
+
+            $sale = OrgSale::where('org_company_id', $company->id)
+                ->where('id', $saleId)
+                ->firstOrFail();
+
+            $sale->update([
+                'commission_status' => $request->commission_status,
+                'seller_payout_date' => $request->seller_payout_date,
+                'commission_amount' => $request->commission_amount ?? $sale->commission_amount,
+            ]);
+
+            // Recargamos relaciones para el frontend
+            $sale->load(['seller:id,name,email', 'processor:id,name,email']);
+
+            return response()->json([
+                'message' => 'Estatus y fecha de comisión actualizados.',
+                'data' => $sale,
+            ], 200);
+
         } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::error('Error de validación en updateCommission', [
-                'errors' => $e->errors(),
-            ]);
-
             return response()->json(['errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            Log::error('Error en updateCommission', ['error' => $e->getMessage()]);
+
+            return response()->json(['message' => 'No se pudo actualizar la comisión.'], 500);
         }
-
-        $company = OrgCompany::where('uid', $uid)->firstOrFail();
-
-        $sale = OrgSale::where('org_company_id', $company->id)
-            ->where('id', $saleId)
-            ->firstOrFail();
-
-        Log::info('Venta encontrada antes de update', ['current_sale' => $sale->toArray()]);
-
-        $updated = $sale->update([
-            'commission_status' => $request->commission_status,
-            'seller_payout_date' => $request->seller_payout_date,
-            'commission_amount' => $request->commission_amount ?? $sale->commission_amount,
-        ]);
-
-        Log::info('Resultado del update', ['success' => $updated]);
-
-        // 🟢 CAMBIO AQUÍ: Recargamos también la relación del procesador para retornar el objeto completo
-        $sale->load(['seller:id,name,email', 'processor:id,name,email']);
-
-        return response()->json([
-            'message' => 'Estatus y fecha de comisión actualizados.',
-            'data' => $sale,
-        ], 200);
     }
 
     /**
      * Exportar las ventas filtradas a PDF
      */
-    public function exportPdf(Request $request, $uid)
+    public function exportPdf(Request $request, string $uid)
     {
-        $request->validate([
-            'sale_ids' => 'required|array',
-            'sale_ids.*' => 'integer',
-        ]);
+        try {
+            $company = OrgCompany::where('uid', $uid)->firstOrFail();
+            $this->authorizeWorkspace($company);
+            $this->authorize('manage_sales');
 
-        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+            $request->validate([
+                'sale_ids' => 'required|array',
+                'sale_ids.*' => 'integer',
+            ]);
 
-        // Buscamos exactamente los IDs que el frontend nos mandó
-        $sales = OrgSale::with(['seller:id,name,email'])
-            ->where('org_company_id', $company->id)
-            ->whereIn('id', $request->sale_ids)
-            ->orderBy('created_at', 'desc')
-            ->get();
+            $sales = OrgSale::with(['seller:id,name,email'])
+                ->where('org_company_id', $company->id)
+                ->whereIn('id', $request->sale_ids)
+                ->orderBy('created_at', 'desc')
+                ->get();
 
-        // Calculamos los totales para el reporte
-        $totalAmount = $sales->sum('total_amount');
-        $totalCommissions = $sales->sum('commission_amount');
+            $totalAmount = $sales->sum('total_amount');
+            $totalCommissions = $sales->sum('commission_amount');
 
-        $logoPath = public_path('assets/img/logo-reportes.png');
-        $logoBase64 = '';
+            // Preparación del logo para PDF
+            $logoPath = public_path('assets/img/logo-reportes.png');
+            $logoBase64 = '';
+            if (file_exists($logoPath)) {
+                $type = pathinfo($logoPath, PATHINFO_EXTENSION);
+                $data = file_get_contents($logoPath);
+                $logoBase64 = 'data:image/'.$type.';base64,'.base64_encode($data);
+            }
 
-        if (file_exists($logoPath)) {
-            $type = pathinfo($logoPath, PATHINFO_EXTENSION);
-            $data = file_get_contents($logoPath);
-            $logoBase64 = 'data:image/'.$type.';base64,'.base64_encode($data);
+            $pdf = Pdf::loadView('pdf.sales-report', [
+                'sales' => $sales,
+                'company' => $company,
+                'totalAmount' => $totalAmount,
+                'totalCommissions' => $totalCommissions,
+                'fechaReporte' => now()->format('d/m/Y H:i'),
+                'logoBase64' => $logoBase64,
+            ]);
+
+            return $pdf->download('reporte_ventas.pdf');
+
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al generar el PDF.'], 500);
         }
-
-        // Generamos el PDF usando una vista Blade
-        $pdf = Pdf::loadView('pdf.sales-report', [
-            'sales' => $sales,
-            'company' => $company,
-            'totalAmount' => $totalAmount,
-            'totalCommissions' => $totalCommissions,
-            'fechaReporte' => now()->format('d/m/Y H:i'),
-            'logoBase64' => $logoBase64,
-        ]);
-
-        // Retornamos el PDF directamente (el frontend lo procesará como archivo)
-        return $pdf->download('reporte_ventas.pdf');
-    }
-
-    /**
-     * Eliminar el registro de una venta
-     */
-    public function destroy($uid, $saleId)
-    {
-        $company = OrgCompany::where('uid', $uid)->firstOrFail();
-
-        $sale = OrgSale::where('org_company_id', $company->id)
-            ->where('id', $saleId)
-            ->firstOrFail();
-
-        $sale->delete();
-
-        Log::info('Venta eliminada correctamente', ['sale_id' => $saleId]);
-
-        return response()->json(['message' => 'Registro eliminado con éxito.'], 200);
     }
 
     /**
      * Actualizar los detalles generales de una venta
      */
-    public function update(Request $request, $uid, $saleId)
+    public function update(Request $request, string $uid, $saleId)
     {
-        Log::info('Iniciando actualización general de venta', ['sale_id' => $saleId, 'payload' => $request->all()]);
+        Log::info('Iniciando actualización general de venta', ['sale_id' => $saleId]);
 
-        $request->validate([
-            'customer_name' => 'required|string|max:255',
-            'customer_email' => 'nullable|email|max:255',
-            'customer_phone' => 'nullable|string|max:50',
-            'product_name' => 'required|string|max:255',
-            'total_amount' => 'required|numeric|min:0',
-            'seller_id' => 'nullable|exists:users,id',
-        ]);
+        try {
+            $company = OrgCompany::where('uid', $uid)->firstOrFail();
+            $this->authorizeWorkspace($company);
+            $this->authorize('manage_sales');
 
-        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+            $request->validate([
+                'customer_name' => 'required|string|max:255',
+                'customer_email' => 'nullable|email|max:255',
+                'customer_phone' => 'nullable|string|max:50',
+                'product_name' => 'required|string|max:255',
+                'total_amount' => 'required|numeric|min:0',
+                'seller_id' => 'nullable|exists:users,id',
+            ]);
 
-        $sale = OrgSale::where('org_company_id', $company->id)
-            ->where('id', $saleId)
-            ->firstOrFail();
+            $sale = OrgSale::where('org_company_id', $company->id)
+                ->where('id', $saleId)
+                ->firstOrFail();
 
-        $sale->update([
-            'customer_name' => $request->customer_name,
-            'customer_email' => $request->customer_email,
-            'customer_phone' => $request->customer_phone,
-            'product_name' => $request->product_name,
-            'total_amount' => $request->total_amount,
-            'seller_id' => $request->seller_id,
-        ]);
+            $sale->update([
+                'customer_name' => $request->customer_name,
+                'customer_email' => $request->customer_email,
+                'customer_phone' => $request->customer_phone,
+                'product_name' => $request->product_name,
+                'total_amount' => $request->total_amount,
+                'seller_id' => $request->seller_id,
+            ]);
 
-        $sale->load(['seller:id,name,email', 'processor:id,name,email']);
+            $sale->load(['seller:id,name,email', 'processor:id,name,email']);
 
-        return response()->json([
-            'message' => 'Venta actualizada correctamente.',
-            'data' => $sale,
-        ], 200);
+            return response()->json([
+                'message' => 'Venta actualizada correctamente.',
+                'data' => $sale,
+            ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al actualizar detalles de la venta.'], 500);
+        }
+    }
+
+    /**
+     * Eliminar el registro de una venta
+     */
+    public function destroy(string $uid, $saleId)
+    {
+        try {
+            $company = OrgCompany::where('uid', $uid)->firstOrFail();
+            $this->authorizeWorkspace($company);
+            $this->authorize('manage_sales');
+
+            $sale = OrgSale::where('org_company_id', $company->id)
+                ->where('id', $saleId)
+                ->firstOrFail();
+
+            $sale->delete();
+
+            Log::info('Venta eliminada correctamente', ['sale_id' => $saleId]);
+
+            return response()->json(['message' => 'Registro eliminado con éxito.'], 200);
+
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'No se pudo eliminar la venta.'], 500);
+        }
     }
 }

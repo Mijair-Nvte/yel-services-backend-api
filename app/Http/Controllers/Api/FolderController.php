@@ -16,32 +16,28 @@ class FolderController extends Controller
     /**
      * 📂 Carpetas raíz (Company o Area)
      */
-    public function index(Request $request)
+    public function index(Request $request, string $uid)
     {
-        $data = $request->validate([
-            'type' => 'required|in:company,area',
-            'uid' => 'required|string',
-        ]);
+        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+        $this->authorizeWorkspace($company);
+        $this->authorize('view_documents');
 
-        if ($data['type'] === 'company') {
-            $company = OrgCompany::where('uid', $data['uid'])->firstOrFail();
+        $type = $request->query('type', 'company');
 
-            return Folder::whereNull('parent_id')
-                ->where('folderable_type', OrgCompany::class)
-                ->where('folderable_id', $company->id)
-                ->orderBy('name')
-                ->get();
-        }
-
-        if ($data['type'] === 'area') {
-            $area = OrgArea::where('uid', $data['uid'])->firstOrFail();
+        if ($type === 'area') {
+            $areaUid = $request->query('area_uid');
+            $area = OrgArea::where('uid', $areaUid)->where('org_company_id', $company->id)->firstOrFail();
 
             return Folder::whereNull('parent_id')
                 ->where('folderable_type', OrgArea::class)
                 ->where('folderable_id', $area->id)
-                ->orderBy('name')
-                ->get();
+                ->orderBy('name')->get();
         }
+
+        return Folder::whereNull('parent_id')
+            ->where('folderable_type', OrgCompany::class)
+            ->where('folderable_id', $company->id)
+            ->orderBy('name')->get();
     }
 
     /**

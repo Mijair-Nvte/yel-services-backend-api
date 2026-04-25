@@ -42,11 +42,13 @@ class OrgCompanyInvitationController extends Controller
         // 🔐 Validar acceso al workspace
         $this->authorizeWorkspace($company);
 
-        // ✅ Validación
+        // ✅ Validación (Aceptamos el array de permisos)
         $data = $request->validate([
             'email' => 'required|email',
             'role' => 'required|in:admin,member',
             'org_area_id' => 'nullable|exists:org_areas,id',
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'string'
         ]);
 
         /**
@@ -89,13 +91,14 @@ class OrgCompanyInvitationController extends Controller
         $token = Str::random(64);
 
         /**
-         * ✅ 5. Guardar invitación
+         * ✅ 5. Guardar invitación (Incluyendo los permisos iniciales)
          */
         $invite = OrgCompanyInvitation::create([
             'org_company_id' => $company->id,
             'org_area_id' => $data['org_area_id'] ?? null,
             'email' => $data['email'],
             'role' => $data['role'],
+            'permissions' => $data['permissions'] ?? [], // Guardamos el JSON
             'token' => $token,
             'expires_at' => now()->addDays(7),
         ]);
@@ -139,12 +142,16 @@ class OrgCompanyInvitationController extends Controller
             'is_active' => true,
         ]);
 
-        // 2. Asignar el rol usando Spatie en el contexto de la empresa (Team)
-        // Le decimos a Spatie en qué compañía estamos asignando el rol
+        // 2. Asignar el rol y los permisos usando Spatie en el contexto de la empresa (Team)
         setPermissionsTeamId($invite->org_company_id);
 
         // Asignamos el rol ('admin' o 'member')
         $user->assignRole($invite->role);
+
+        // 🔥 MAGIA: Asignar permisos específicos si es 'member' y trae permisos en la invitación
+        if ($invite->role !== 'admin' && !empty($invite->permissions)) {
+            $user->syncPermissions($invite->permissions);
+        }
 
         // Marcar invitación como aceptada
         $invite->update([

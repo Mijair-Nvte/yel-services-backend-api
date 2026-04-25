@@ -9,26 +9,43 @@ class ChatParticipant extends Model
 {
     use HasFactory;
 
+    // Permite llenar: org_company_id, chat_conversation_id, user_id, last_read_message_id
     protected $guarded = [];
 
-    // Convertir a fecha automáticamente
+    /**
+     * Casts de fechas personalizadas
+     */
     protected $casts = [
         'cleared_at' => 'datetime',
     ];
 
-    // Conversación a la que está unido
+    /**
+     * Relación directa con la empresa (Multi-tenant)
+     */
+    public function company()
+    {
+        return $this->belongsTo(OrgCompany::class, 'org_company_id');
+    }
+    
+    /**
+     * Conversación en la que participa
+     */
     public function conversation()
     {
         return $this->belongsTo(ChatConversation::class, 'chat_conversation_id');
     }
 
-    // El usuario participante
+    /**
+     * El usuario que es participante
+     */
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id');
     }
 
-    // El último mensaje que este participante vio
+    /**
+     * El último mensaje leído por este usuario en esta conversación
+     */
     public function lastReadMessage()
     {
         return $this->belongsTo(ChatMessage::class, 'last_read_message_id');

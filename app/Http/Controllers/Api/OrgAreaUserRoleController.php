@@ -6,41 +6,23 @@ use App\Http\Controllers\Concerns\AuthorizesWorkspace;
 use App\Http\Controllers\Controller;
 use App\Models\OrgArea;
 use App\Models\OrgAreaUserRole;
+use App\Models\OrgCompany;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 
 class OrgAreaUserRoleController extends Controller
 {
-    use AuthorizesWorkspace;
+    use AuthorizesRequests, AuthorizesWorkspace;
 
     /**
-     * Listado general (filtrable)
+     * Crear asignación (Contextual a la empresa)
      */
-    public function index(Request $request)
+    public function store(Request $request, string $uid)
     {
-        $query = OrgAreaUserRole::with([
-            'user.profile',
-            'area',
-            'position',
-        ]);
+        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+        $this->authorizeWorkspace($company);
+        $this->authorize('manage_areas');
 
-        if ($request->filled('user_id')) {
-            $query->where('user_id', $request->user_id);
-        }
-
-        if ($request->filled('org_area_id')) {
-            $query->where('org_area_id', $request->org_area_id);
-        }
-
-        return response()->json(
-            $query->get()
-        );
-    }
-
-    /**
-     * Crear asignación usuario ↔ departamento ↔ puesto
-     */
-    public function store(Request $request)
-    {
         $data = $request->validate([
             'user_id' => 'required|exists:users,id',
             'org_area_id' => 'required|exists:org_areas,id',
@@ -50,25 +32,18 @@ class OrgAreaUserRoleController extends Controller
             'is_active' => 'boolean',
         ]);
 
-        // 🔎 Buscar área con compañía
-        $area = OrgArea::with('company')->findOrFail($data['org_area_id']);
+        // Validar que el área pertenezca a esta empresa
+        $area = OrgArea::where('id', $data['org_area_id'])
+            ->where('org_company_id', $company->id)
+            ->firstOrFail();
 
-        // 🔐 Validar que el usuario tenga acceso al workspace
-        $this->authorizeWorkspace($area->company);
-
-        // 🔎 Validar que el usuario pertenezca a la compañía
-        $belongsToCompany = $area->company
-            ->users()
-            ->where('user_id', $data['user_id'])
-            ->exists();
-
-        if (! $belongsToCompany) {
-            return response()->json([
-                'message' => 'El usuario no pertenece a esta compañía',
-            ], 422);
+        // Validar que el usuario sea miembro de la empresa
+        $isMember = $company->users()->where('user_id', $data['user_id'])->exists();
+        if (! $isMember) {
+            return response()->json(['message' => 'El usuario no es miembro de esta empresa'], 422);
         }
 
-        // 🚫 Evitar duplicados
+        // Evitar duplicados
         $exists = OrgAreaUserRole::where([
             'user_id' => $data['user_id'],
             'org_area_id' => $data['org_area_id'],
@@ -76,83 +51,51 @@ class OrgAreaUserRoleController extends Controller
         ])->exists();
 
         if ($exists) {
-            return response()->json([
-                'message' => 'El usuario ya está asignado a esta área con ese puesto',
-            ], 409);
+            return response()->json(['message' => 'Esta asignación ya existe'], 409);
         }
 
         $assignment = OrgAreaUserRole::create($data);
 
-        return response()->json(
-            $assignment->load(['user.profile', 'area', 'position']),
-            201
-        );
-    }
-
-    /**
-     * Ver detalle de una asignación
-     */
-    public function show($id)
-    {
-        return response()->json(
-            OrgAreaUserRole::with([
-                'user.profile',
-                'area',
-                'position',
-            ])->findOrFail($id)
-        );
-    }
-
-    /**
-     * Actualizar flags
-     */
-    public function update(Request $request, $id)
-    {
-        $assignment = OrgAreaUserRole::findOrFail($id);
-
-        $data = $request->validate([
-            'position_title' => 'nullable|string|max:255',
-            'is_primary' => 'boolean',
-            'is_active' => 'boolean',
-        ]);
-
-        $assignment->update($data);
-
-        return response()->json(
-            $assignment->load(['user.profile', 'area', 'position'])
-        );
+        return response()->json($assignment->load(['user.profile', 'area', 'position']), 201);
     }
 
     /**
      * Eliminar asignación
      */
-    public function destroy($id)
+    public function destroy(string $uid, $id)
     {
-        $assignment = OrgAreaUserRole::with('area.company')->findOrFail($id);
+        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+        $this->authorizeWorkspace($company);
+        $this->authorize('manage_areas');
 
-        $this->authorizeWorkspace($assignment->area->company);
+        $assignment = OrgAreaUserRole::where('id', $id)
+            ->whereHas('area', function ($q) use ($company) {
+                $q->where('org_company_id', $company->id);
+            })->firstOrFail();
 
         $assignment->delete();
 
-        return response()->json(['message' => 'Assignment deleted']);
+        return response()->json(['message' => 'Asignación eliminada']);
     }
 
     /**
-     * Equipo de un departamento (CLAVE)
+     * Listar equipo por Área (Ya lo tenías, mantenido por compatibilidad)
      */
-    public function byArea(string $uid)
+    public function byArea(string $uid, string $areaUid)
     {
-        $area = OrgArea::where('uid', $uid)
-            ->with('company')
+        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+        $this->authorizeWorkspace($company);
+        $this->authorize('view_areas');
+
+        $area = OrgArea::where('uid', $areaUid)
+            ->where('org_company_id', $company->id)
             ->firstOrFail();
 
-        $this->authorizeWorkspace($area->company);
+        $team = OrgAreaUserRole::where('org_area_id', $area->id)
+            ->with(['user.profile', 'position'])
+            ->orderByDesc('is_primary')
+            ->get();
 
-        return response()->json(
-            OrgAreaUserRole::where('org_area_id', $area->id)
-                ->with(['user.profile', 'position'])
-                ->orderByDesc('is_primary')
-                ->get()
-        );
+        return response()->json($team);
     }
 }
