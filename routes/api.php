@@ -19,8 +19,6 @@ use App\Http\Controllers\Api\OrgCompanyLinkController;
 use App\Http\Controllers\Api\OrgCompanyNoticeController;
 use App\Http\Controllers\Api\OrgCompanyUserController;
 use App\Http\Controllers\Api\OrgEventController;
-use App\Http\Controllers\Api\OrgMemberAccessController;
-use App\Http\Controllers\Api\OrgMemberController;
 use App\Http\Controllers\Api\OrgPaymentLinkMappingController;
 use App\Http\Controllers\Api\OrgPositionController;
 use App\Http\Controllers\Api\SalesController;
@@ -90,44 +88,27 @@ Route::prefix('v1')->group(function () {
             Route::get('/dashboard', [DashboardController::class, 'overview'])->middleware('can:view_dashboard');
 
             // ==========================================
-            // 👁️ VISTA DEL EQUIPO (Requiere view_team)
+            // 👥 GESTIÓN DE USUARIOS DE LA COMPAÑÍA
             // ==========================================
-            Route::middleware('can:view_team')->group(function () {
-                Route::get('/members', [OrgMemberController::class, 'index']);
-                Route::get('/members/{id}', [OrgMemberController::class, 'show']);
-                Route::get('/team', [OrgCompanyUserController::class, 'index']);
-                Route::get('/team/{id}', [OrgCompanyUserController::class, 'show']);
-                Route::get('/positions', [OrgPositionController::class, 'index']);
+
+            // 📖 Directorio Público (Solo requiere estar en la compañía) se usara para consultas directa a usuario
+            Route::get('/directory', [OrgCompanyUserController::class, 'directory']);
+
+            // Metodo para ver las posiciones
+            Route::get('/positions', [OrgPositionController::class, 'index']);
+
+            // 👁️ Ver Usuarios (Settings)
+            Route::middleware('can:view_users')->group(function () {
+                Route::get('/users', [OrgCompanyUserController::class, 'index']);
+                Route::get('/users/{id}', [OrgCompanyUserController::class, 'show']);
             });
 
-            // ==========================================
-            // ⚙️ GESTIÓN Y ADMINISTRACIÓN (Requiere manage_team)
-            // ==========================================
-            Route::middleware('can:manage_team')->group(function () {
-
-                // --- 2. Invitaciones ---
+            // ⚙️ Administrar Usuarios (Settings)
+            Route::middleware('can:manage_users')->group(function () {
                 Route::post('/invitations', [OrgCompanyInvitationController::class, 'store']);
-
-                // --- 3. Miembros, Roles y Permisos (Seguridad) ---
-                Route::get('/roles-list', [OrgMemberController::class, 'getAvailableRoles']);
-                Route::put('/members/{id}', [OrgMemberController::class, 'update']);
-                Route::delete('/members/{id}', [OrgMemberController::class, 'destroy']);
-                Route::patch('/members/{id}/toggle-permission', [OrgMemberAccessController::class, 'togglePermission']);
-
-                // --- 4. Equipo Interno y Posiciones (Estructura Organizacional) ---
-                Route::post('/team', [OrgCompanyUserController::class, 'store']);
-                Route::put('/team/{id}', [OrgCompanyUserController::class, 'update']);
-                Route::delete('/team/{id}', [OrgCompanyUserController::class, 'destroy']);
-
-                Route::post('/positions', [OrgPositionController::class, 'store']);
-                Route::delete('/positions/{id}', [OrgPositionController::class, 'destroy']);
-
+                Route::put('/users/{id}', [OrgCompanyUserController::class, 'update']);
+                Route::delete('/users/{id}', [OrgCompanyUserController::class, 'destroy']);
             });
-
-            // 👥 Equipo y Roles de una compania 
-            Route::get('/team', [OrgCompanyUserController::class, 'index'])->middleware('can:view_team');
-            Route::get('/team/{id}', [OrgCompanyUserController::class, 'show'])->middleware('can:view_team');
-            Route::get('/positions', [OrgPositionController::class, 'index'])->middleware('can:view_team');
 
             // 💰 VENTAS / SALES
             Route::group([], function () {
@@ -215,7 +196,7 @@ Route::prefix('v1')->group(function () {
                 Route::middleware('can:view_areas')->group(function () {
                     Route::get('/areas', [OrgAreaController::class, 'index']);
                     Route::get('/areas/{areaUid}', [OrgAreaController::class, 'show']);
-                    Route::get('/areas/{areaUid}/team', [OrgAreaUserRoleController::class, 'byArea'])->middleware('can:view_team');
+                    Route::get('/areas/{areaUid}/team', [OrgAreaUserRoleController::class, 'byArea'])->middleware('can:view_users');
                     Route::get('/areas/{areaUid}/notices', [OrgCompanyNoticeController::class, 'indexArea'])->middleware('can:view_notices');
                 });
 
