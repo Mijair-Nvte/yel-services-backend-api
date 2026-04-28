@@ -142,11 +142,23 @@ class ChatController extends Controller
     }
 
     // 4. Marcar mensajes como leídos
-    public function markAsRead($conversationId)
+    /**
+     * 4. Marcar mensajes como leídos
+     */
+    // ✅ Agregamos $uid como primer parámetro
+    public function markAsRead(string $uid, $conversationId)
     {
-        $user = request()->user();
+        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+        $user = auth()->user();
 
-        $latestMessage = ChatMessage::where('chat_conversation_id', $conversationId)->latest('id')->first();
+        // 🛡️ Validación de seguridad: Verificar que la conversación es de esta empresa
+        $conversation = ChatConversation::where('id', $conversationId)
+            ->where('org_company_id', $company->id)
+            ->firstOrFail();
+
+        $latestMessage = ChatMessage::where('chat_conversation_id', $conversationId)
+            ->latest('id')
+            ->first();
 
         if ($latestMessage) {
             ChatParticipant::where('chat_conversation_id', $conversationId)
