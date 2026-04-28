@@ -222,6 +222,29 @@ Route::prefix('v1')->group(function () {
                 Route::delete('/messages/{messageId}', [ChatController::class, 'deleteMessage']);
             });
 
+            // ==========================================
+            // 📁 CARPETAS Y DOCUMENTOS (NUEVO BLOQUE)
+            // ==========================================
+            Route::group([], function () {
+                Route::middleware('can:view_documents')->group(function () {
+                    Route::get('/folders', [FolderController::class, 'index']);
+                    Route::get('/folders/{folder}/children', [FolderController::class, 'children']);
+                    Route::get('/folders/{folderUid}/documents', [DocumentController::class, 'byFolder']);
+                    Route::get('/documents/{documentUid}', [DocumentController::class, 'show']);
+                });
+
+                Route::middleware('can:manage_documents')->group(function () {
+                    Route::post('/folders', [FolderController::class, 'store']);
+                    Route::put('/folders/{folder}', [FolderController::class, 'update']);
+                    Route::delete('/folders/{folder}', [FolderController::class, 'destroy']);
+
+                    Route::post('/documents', [DocumentController::class, 'store']);
+                    Route::delete('/documents/{documentUid}', [DocumentController::class, 'destroy']);
+                    Route::post('/documents/presign', [DocumentController::class, 'presign']);
+                    Route::post('/documents/confirm', [DocumentController::class, 'confirm']);
+                });
+            });
+
         });
 
         // ========================================================================
@@ -235,24 +258,6 @@ Route::prefix('v1')->group(function () {
         Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
         Route::post('/notifications/read-all', [NotificationController::class, 'markAll']);
         Route::get('/notice-levels', [NoticeLevelController::class, 'index']);
-
-        // 📂 Carpetas y Documentos
-        Route::middleware('can:view_documents')->group(function () {
-            Route::get('/folders', [FolderController::class, 'index']);
-            Route::get('/folders/{folder}/children', [FolderController::class, 'children']);
-            Route::get('/folders/{folderUid}/documents', [DocumentController::class, 'byFolder']);
-            Route::get('/documents/{uid}', [DocumentController::class, 'show']);
-        });
-
-        Route::middleware('can:manage_documents')->group(function () {
-            Route::post('/folders', [FolderController::class, 'store']);
-            Route::put('/folders/{folder}', [FolderController::class, 'update']);
-            Route::delete('/folders/{folder}', [FolderController::class, 'destroy']);
-            Route::post('/documents', [DocumentController::class, 'store']);
-            Route::delete('/documents/{uid}', [DocumentController::class, 'destroy']);
-            Route::post('/documents/presign', [DocumentController::class, 'presign']);
-            Route::post('/documents/confirm', [DocumentController::class, 'confirm']);
-        });
 
     });
 });

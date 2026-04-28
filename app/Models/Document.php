@@ -9,6 +9,7 @@ class Document extends Model
 {
     protected $fillable = [
         'uid',
+        'org_company_id',
         'title',
         'description',
         'file_name',
@@ -35,5 +36,10 @@ class Document extends Model
     public function uploader()
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(OrgCompany::class, 'org_company_id');
     }
 }

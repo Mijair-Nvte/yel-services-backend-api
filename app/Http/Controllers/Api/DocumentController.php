@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Document;
+use App\Models\OrgCompany;
 use App\Models\Folder;
 use Aws\S3\S3Client;
 use Illuminate\Http\Request;
@@ -18,9 +19,15 @@ class DocumentController extends Controller
     /**
      * 📄 Listar documentos de una carpeta
      */
-    public function byFolder(string $folderUid)
+    // ✅ Recibe el $uid de la compañía
+    public function byFolder(string $uid, string $folderUid)
     {
-        $folder = Folder::where('uid', $folderUid)->firstOrFail();
+        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+
+        // Validamos que la carpeta pertenezca a esta compañía
+        $folder = Folder::where('uid', $folderUid)
+            ->where('org_company_id', $company->id)
+            ->firstOrFail();
 
         return response()->json(
             $folder->documents()
@@ -32,7 +39,7 @@ class DocumentController extends Controller
     /**
      * ➕ Subir documento a una carpeta
      */
-    public function store(Request $request)
+    public function store(Request $request, string $uid)
     {
         $data = $request->validate([
             'file' => 'required|file|max:20480', // 20MB
@@ -41,7 +48,10 @@ class DocumentController extends Controller
             'description' => 'nullable|string',
         ]);
 
-        $folder = Folder::where('uid', $data['folder_uid'])->firstOrFail();
+        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+        $folder = Folder::where('uid', $data['folder_uid'])
+            ->where('org_company_id', $company->id)
+            ->firstOrFail();
 
         DB::beginTransaction();
 
@@ -74,6 +84,7 @@ class DocumentController extends Controller
             );
 
             $document = Document::create([
+                'org_company_id' => $company->id,
                 'title' => $data['title'] ?? $file->getClientOriginalName(),
                 'description' => $data['description'] ?? null,
                 'file_name' => $file->getClientOriginalName(),
@@ -177,9 +188,15 @@ class DocumentController extends Controller
     /**
      * 🗑️ Eliminar documento
      */
-    public function destroy(string $uid)
+
+
+   // ✅ Recibe el $uid de la compañía
+    public function destroy(string $uid, string $documentUid)
     {
-        $document = Document::where('uid', $uid)->firstOrFail();
+        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+        $document = Document::where('uid', $documentUid)
+            ->where('org_company_id', $company->id)
+            ->firstOrFail();
 
         $disk = $document->storage_service;
         $path = $document->file_url;
@@ -187,43 +204,30 @@ class DocumentController extends Controller
         DB::beginTransaction();
 
         try {
-            // 1. Intentar borrar físicamente el archivo del Storage (R2/S3/Local)
+            // 1. Borramos el archivo de Cloudflare DIRECTAMENTE sin preguntar si existe
             if ($disk && $path) {
-                if (Storage::disk($disk)->exists($path)) {
-                    Storage::disk($disk)->delete($path);
-                } else {
-                    // Opcional: Registrar que el archivo no estaba en el disco,
-                    // pero continuamos con el borrado en BD.
-                    Log::warning("El archivo {$path} no se encontró en el disco {$disk} al intentar eliminarlo.");
-                }
+                Storage::disk($disk)->delete($path);
             }
 
-            // 2. Si se borró del disco (o no estaba), borrar el registro de la BD
+            // 2. Borramos de la base de datos
             $document->delete();
-
+            
             DB::commit();
 
-            return response()->json([
-                'message' => 'Documento eliminado correctamente',
-            ]);
+            return response()->json(['message' => 'Documento eliminado correctamente']);
 
         } catch (\Throwable $e) {
             DB::rollBack();
+            Log::error('Error al eliminar documento', ['document_uid' => $documentUid, 'path' => $path, 'error' => $e->getMessage()]);
 
-            Log::error('Error al eliminar documento', [
-                'document_uid' => $uid,
-                'path' => $path,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'message' => 'No se pudo eliminar el documento de la nube o la base de datos.',
-            ], 500);
+            return response()->json(['message' => 'No se pudo eliminar el documento de la nube.'], 500);
         }
     }
 
-    public function presign(Request $request)
+    public function presign(Request $request, string $uid)
     {
+        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+
         $data = $request->validate([
             'folder_uid' => 'required|exists:folders,uid',
             'file_name' => 'required|string',
@@ -231,7 +235,9 @@ class DocumentController extends Controller
             'file_size' => 'required|integer',
         ]);
 
-        $folder = Folder::where('uid', $data['folder_uid'])->firstOrFail();
+        $folder = Folder::where('uid', $data['folder_uid'])
+            ->where('org_company_id', $company->id)
+            ->firstOrFail();
 
         // Limpiar el nombre del archivo y la extensión
         $extension = pathinfo($data['file_name'], PATHINFO_EXTENSION);
@@ -274,8 +280,11 @@ class DocumentController extends Controller
         ]);
     }
 
-    public function confirm(Request $request)
+    public function confirm(Request $request, string $uid)
     {
+        // 1. Obtenemos la compañía desde la URL
+        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+
         $data = $request->validate([
             'folder_uid' => 'required|exists:folders,uid',
             'original_name' => 'required|string',
@@ -284,7 +293,10 @@ class DocumentController extends Controller
             'key' => 'required|string',
         ]);
 
-        $folder = Folder::where('uid', $data['folder_uid'])->firstOrFail();
+       // 2. Buscamos la carpeta asegurándonos que pertenezca a la compañía
+        $folder = Folder::where('uid', $data['folder_uid'])
+                        ->where('org_company_id', $company->id)
+                        ->firstOrFail();
 
         // 🔒 VERIFICAR QUE EL ARCHIVO EXISTE EN R2
         if (! Storage::disk('r2')->exists($data['key'])) {
@@ -297,6 +309,7 @@ class DocumentController extends Controller
 
         try {
             $document = Document::create([
+                'org_company_id' => $company->id,
                 // Nombre visible (original)
                 'title' => $data['original_name'],
                 'file_name' => $data['original_name'],

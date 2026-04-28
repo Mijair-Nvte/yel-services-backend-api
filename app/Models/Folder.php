@@ -9,6 +9,7 @@ class Folder extends Model
 {
     protected $fillable = [
         'uid',
+        'org_company_id',
         'name',
         'parent_id',
         'folderable_id',
@@ -48,5 +49,10 @@ class Folder extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(OrgCompany::class, 'org_company_id');
     }
 }

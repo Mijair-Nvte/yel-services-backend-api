@@ -9,6 +9,7 @@ use App\Models\OrgCompany;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log; // <-- Agregué este import que faltaba en tu código
 use Illuminate\Support\Facades\Storage;
 
 class FolderController extends Controller
@@ -19,32 +20,40 @@ class FolderController extends Controller
     public function index(Request $request, string $uid)
     {
         $company = OrgCompany::where('uid', $uid)->firstOrFail();
-        $this->authorizeWorkspace($company);
-        $this->authorize('view_documents');
+
+        $query = Folder::where('org_company_id', $company->id)
+            ->whereNull('parent_id');
 
         $type = $request->query('type', 'company');
 
         if ($type === 'area') {
             $areaUid = $request->query('area_uid');
-            $area = OrgArea::where('uid', $areaUid)->where('org_company_id', $company->id)->firstOrFail();
+            $area = OrgArea::where('uid', $areaUid)
+                ->where('org_company_id', $company->id)
+                ->firstOrFail();
 
-            return Folder::whereNull('parent_id')
-                ->where('folderable_type', OrgArea::class)
-                ->where('folderable_id', $area->id)
-                ->orderBy('name')->get();
+            $query->where('folderable_type', OrgArea::class)
+                ->where('folderable_id', $area->id);
+        } else {
+            $query->where('folderable_type', OrgCompany::class)
+                ->where('folderable_id', $company->id);
         }
 
-        return Folder::whereNull('parent_id')
-            ->where('folderable_type', OrgCompany::class)
-            ->where('folderable_id', $company->id)
-            ->orderBy('name')->get();
+        return response()->json($query->orderBy('name')->get());
     }
 
     /**
      * 📁 Subcarpetas + documentos
      */
-    public function children(Folder $folder)
+    // ✅ Agregamos string $uid como primer parámetro
+    public function children(string $uid, Folder $folder)
     {
+        // Opcional: Validar que la carpeta pertenece a esta compañía
+        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+        if ($folder->org_company_id !== $company->id) {
+            abort(403, 'No tienes acceso a esta carpeta.');
+        }
+
         return response()->json([
             'folders' => $folder->children()->orderBy('name')->get(),
             'documents' => $folder->documents()->latest()->get(),
@@ -54,33 +63,33 @@ class FolderController extends Controller
     /**
      * 📂 Crear carpeta
      */
-    public function store(Request $request)
+    // ✅ Agregamos string $uid como primer parámetro
+    public function store(Request $request, string $uid)
     {
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'parent_id' => 'nullable|exists:folders,id',
-            'company_uid' => 'nullable|exists:org_companies,uid',
             'area_uid' => 'nullable|exists:org_areas,uid',
         ]);
 
-        if (! $data['company_uid'] && ! $data['area_uid']) {
-            return response()->json([
-                'message' => 'Debe pertenecer a una compañía o a un área',
-            ], 422);
-        }
+        $company = OrgCompany::where('uid', $uid)->firstOrFail();
 
         DB::beginTransaction();
 
         try {
-            if ($data['company_uid']) {
-                $company = OrgCompany::where('uid', $data['company_uid'])->firstOrFail();
-                $folderable = $company;
-            } else {
-                $area = OrgArea::where('uid', $data['area_uid'])->firstOrFail();
+            // Si mandan un area_uid, pertenece al área. Si no, a la compañía.
+            if (! empty($data['area_uid'])) {
+                $area = OrgArea::where('uid', $data['area_uid'])
+                    ->where('org_company_id', $company->id)
+                    ->firstOrFail();
                 $folderable = $area;
+            } else {
+                $folderable = $company;
             }
 
+            // ✅ Aquí guardamos el org_company_id que acabas de agregar en la BD
             $folder = Folder::create([
+                'org_company_id' => $company->id,
                 'name' => $data['name'],
                 'parent_id' => $data['parent_id'] ?? null,
                 'folderable_id' => $folderable->id,
@@ -94,14 +103,21 @@ class FolderController extends Controller
 
         } catch (\Throwable $e) {
             DB::rollBack();
+            Log::error('Error al crear carpeta: '.$e->getMessage());
 
             return response()->json(['error' => 'Error al crear carpeta'], 500);
         }
     }
 
     // ✏️ Renombrar carpeta
-    public function update(Request $request, Folder $folder)
+    // ✅ Agregamos string $uid como primer parámetro
+    public function update(Request $request, string $uid, Folder $folder)
     {
+        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+        if ($folder->org_company_id !== $company->id) {
+            abort(403);
+        }
+
         $data = $request->validate([
             'name' => 'required|string|max:255',
         ]);
@@ -114,10 +130,16 @@ class FolderController extends Controller
     }
 
     /**
-     * 📁 Contenido de carpeta
+     * 📁 Contenido de carpeta (Detalle)
      */
-    public function show(Folder $folder)
+    // ✅ Agregamos string $uid como primer parámetro
+    public function show(string $uid, Folder $folder)
     {
+        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+        if ($folder->org_company_id !== $company->id) {
+            abort(403);
+        }
+
         return response()->json([
             'folder' => $folder,
             'folders' => $folder->children()->orderBy('order')->get(),
@@ -128,8 +150,14 @@ class FolderController extends Controller
     /**
      * 🗑️ Eliminar carpeta recursivamente
      */
-    public function destroy(Folder $folder)
+    // ✅ Agregamos string $uid como primer parámetro
+    public function destroy(string $uid, Folder $folder)
     {
+        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+        if ($folder->org_company_id !== $company->id) {
+            abort(403);
+        }
+
         try {
             DB::transaction(fn () => $this->deleteRecursive($folder));
 
@@ -141,7 +169,6 @@ class FolderController extends Controller
 
             return response()->json(['message' => 'Ocurrió un error al eliminar la carpeta.'], 500);
         }
-
     }
 
     private function deleteRecursive(Folder $folder)
@@ -151,14 +178,11 @@ class FolderController extends Controller
             $disk = $doc->storage_service;
             $path = $doc->file_url;
 
-            // Intentar borrar físicamente de R2 (o el disco que sea)
+            // Borrar físicamente de R2/S3 DIRECTAMENTE sin usar exists()
             if ($disk && $path) {
                 try {
-                    if (Storage::disk($disk)->exists($path)) {
-                        Storage::disk($disk)->delete($path);
-                    }
+                    Storage::disk($disk)->delete($path);
                 } catch (\Exception $e) {
-                    // Solo logueamos el error, pero permitimos que el borrado en BD continúe
                     Log::warning("No se pudo eliminar el archivo {$path} de Cloudflare al borrar la carpeta.", ['error' => $e->getMessage()]);
                 }
             }
