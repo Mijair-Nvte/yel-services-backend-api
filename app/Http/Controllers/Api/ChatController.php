@@ -14,12 +14,61 @@ use Illuminate\Support\Facades\DB;
 class ChatController extends Controller
 {
     /**
+     * Helper: Asegura que el chat de la empresa exista y el usuario esté dentro
+     */
+    private function ensureGroupChatExists($company, $user)
+    {
+        $groupChat = ChatConversation::where('org_company_id', $company->id)
+            ->where('type', 'group')
+            ->first();
+
+        if (! $groupChat) {
+            $groupChat = ChatConversation::create([
+                'org_company_id' => $company->id,
+                'type' => 'group',
+            ]);
+
+            // Obtener todos los usuarios activos de la empresa para meterlos al chat inicial
+            $companyUsers = OrgCompanyUser::where('org_company_id', $company->id)
+                ->where('is_active', 1)
+                ->pluck('user_id');
+
+            $participants = [];
+            foreach ($companyUsers as $userId) {
+                $participants[] = [
+                    'org_company_id' => $company->id,
+                    'chat_conversation_id' => $groupChat->id,
+                    'user_id' => $userId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+            ChatParticipant::insert($participants);
+        } else {
+            // Si ya existe, asegurarnos de que el usuario actual esté dentro (por si es un empleado nuevo)
+            ChatParticipant::firstOrCreate([
+                'org_company_id' => $company->id,
+                'chat_conversation_id' => $groupChat->id,
+                'user_id' => $user->id,
+            ]);
+        }
+
+        return $groupChat;
+    }
+
+    /**
+     * 1. Listar chats del usuario en la empresa actual
+     */
+    /**
      * 1. Listar chats del usuario en la empresa actual
      */
     public function index($uid)
     {
         $company = OrgCompany::where('uid', $uid)->firstOrFail();
         $user = auth()->user();
+
+        // 💡 Verificamos y/o creamos el chat grupal antes de listar, así siempre le aparecerá al usuario
+        $this->ensureGroupChatExists($company, $user);
 
         $conversations = ChatConversation::where('org_company_id', $company->id)
             ->whereHas('participants', function ($query) use ($user) {
@@ -112,6 +161,37 @@ class ChatController extends Controller
         ]);
     }
 
+
+    /**
+     * 2. Obtener Chat Grupal de la Compañía
+     */
+    public function getOrCreateGroup($uid)
+    {
+        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+        $user = auth()->user();
+
+        $conversation = $this->ensureGroupChatExists($company, $user);
+
+        $myParticipant = ChatParticipant::where('chat_conversation_id', $conversation->id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        $messages = ChatMessage::where('chat_conversation_id', $conversation->id)
+            ->when($myParticipant->cleared_at, function ($query, $clearedAt) {
+                $query->where('created_at', '>', $clearedAt);
+            })
+            ->with('sender:id,name')
+            ->latest()
+            ->paginate(50);
+
+        return response()->json([
+            'conversation' => $conversation->load(['participants.user' => function ($q) {
+                $q->select('id', 'name', 'email')->with('profile:user_id,avatar');
+            }]),
+            'messages' => $messages,
+        ]);
+    }
+    
     /**
      * 3. Enviar mensaje
      */

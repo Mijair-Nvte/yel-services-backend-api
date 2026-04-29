@@ -70,10 +70,17 @@ Route::prefix('v1')->group(function () {
             Route::get('/my-permissions', function (string $uid) {
                 $user = auth()->user();
 
+                // 1. Buscamos la compañía para saber quién es el dueño
+                $company = \App\Models\OrgCompany::where('uid', $uid)->first();
+
+                // 2. Verificamos si el usuario actual es el dueño
+                $isOwner = $company && $company->owner_id === $user->id;
+
                 // Gracias a tu SetTenantContext, Spatie ya está filtrando por esta empresa
                 return response()->json([
-                    'roles' => $user->getRoleNames(), // ej: ['admin'] o ['user']
-                    'permissions' => $user->getAllPermissions()->pluck('name'), // ej: ['view_dashboard', 'manage_team', ...]
+                    'is_owner' => $isOwner, // ✅ Pasamos esta nueva bandera al frontend
+                    'roles' => $user->getRoleNames(),
+                    'permissions' => $user->getAllPermissions()->pluck('name'),
                 ]);
             });
 
@@ -214,6 +221,7 @@ Route::prefix('v1')->group(function () {
             // 💬 Chat (Bloque Unificado y Protegido)
             Route::group([], function () {
                 Route::get('/chats', [ChatController::class, 'index']);
+                Route::get('/chats/group', [ChatController::class, 'getOrCreateGroup']);
                 Route::get('/chats/direct/{userId}', [ChatController::class, 'getOrCreateDirect']);
                 Route::post('/chats/{conversationId}/messages', [ChatController::class, 'sendMessage']);
                 Route::post('/chats/{conversationId}/read', [ChatController::class, 'markAsRead']);
@@ -254,8 +262,7 @@ Route::prefix('v1')->group(function () {
                 Route::post('/time-tracking/check-in', [\App\Http\Controllers\Api\OrgTimeTrackingController::class, 'checkIn']);
                 Route::post('/time-tracking/check-out', [\App\Http\Controllers\Api\OrgTimeTrackingController::class, 'checkOut']);
 
-              
-                 Route::get('/time-tracking', [\App\Http\Controllers\Api\OrgTimeTrackingController::class, 'index'])->middleware('can:view_time_tracking');
+                Route::get('/time-tracking', [\App\Http\Controllers\Api\OrgTimeTrackingController::class, 'index'])->middleware('can:view_time_tracking');
             });
 
         });
