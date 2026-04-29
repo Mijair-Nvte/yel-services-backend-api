@@ -245,6 +245,19 @@ Route::prefix('v1')->group(function () {
                 });
             });
 
+            // ==========================================
+            // ⏱️ TIME TRACKING
+            // ==========================================
+            Route::group([], function () {
+                // Estas rutas son de uso personal para cada usuario, no requieren un permiso de "manage" o "view" global
+                Route::get('/time-tracking/status', [\App\Http\Controllers\Api\OrgTimeTrackingController::class, 'currentStatus']);
+                Route::post('/time-tracking/check-in', [\App\Http\Controllers\Api\OrgTimeTrackingController::class, 'checkIn']);
+                Route::post('/time-tracking/check-out', [\App\Http\Controllers\Api\OrgTimeTrackingController::class, 'checkOut']);
+
+              
+                 Route::get('/time-tracking', [\App\Http\Controllers\Api\OrgTimeTrackingController::class, 'index'])->middleware('can:view_time_tracking');
+            });
+
         });
 
         // ========================================================================
