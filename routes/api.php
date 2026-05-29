@@ -359,7 +359,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/me', App\Http\Controllers\Api\Partner\AffiliateMeController::class);
 
             // ==========================================
-            // 🏢 MÓDULO INVESTOR READY (Portal del Partner)
+            // 🏢 MÓDULO INVESTOR READY (Portal del Partner) cambios
             // ==========================================
             Route::prefix('investor-ready')->group(function () {
 
