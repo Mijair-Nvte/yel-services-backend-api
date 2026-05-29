@@ -2,17 +2,17 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Cashier\Billable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasApiTokens,HasFactory, Notifiable,HasRoles;
+    use Billable,HasApiTokens, HasFactory,HasRoles,Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -95,4 +95,31 @@ class User extends Authenticatable
     {
         return $this->hasMany(ChatParticipant::class);
     }
+
+
+    // Relación para traer las propiedades de este inversionista
+    public function orgProperties()
+    {
+        return $this->hasMany(OrgProperty::class, 'user_id');
+    }
+
+    // Accessor para calcular el nivel actual dinámicamente
+    public function getCurrentInvestorTierAttribute()
+    {
+        // 1. Contamos cuántas propiedades cerradas tiene el usuario
+        $closedPropertiesCount = $this->orgProperties()->where('status', 'closed')->count();
+
+        // 2. Buscamos el ID de la empresa de forma segura
+        $companyUserPivot = $this->companies()->first();
+        $companyId = $companyUserPivot ? $companyUserPivot->org_company_id : 1;
+
+        // 3. Buscamos el nivel que le corresponde
+        return OrgInvestorTier::where('org_company_id', $companyId)
+            ->where('is_active', true)
+            ->where('min_properties', '<=', $closedPropertiesCount)
+            ->orderBy('min_properties', 'desc')
+            ->first();
+    }
+    
+  
 }

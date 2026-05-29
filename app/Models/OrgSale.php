@@ -21,8 +21,10 @@ class OrgSale extends Model
         'customer_phone',
         'customer_origin',
         'product_name',
+        'org_service_id',
         'total_amount',
         'seller_id',
+       'referral_code',
         'commission_amount',
         'commission_status',
         'seller_payout_date',
@@ -63,5 +65,10 @@ class OrgSale extends Model
     public function processor()
     {
         return $this->belongsTo(User::class, 'processor_id');
+    }
+
+    public function service()
+    {
+        return $this->belongsTo(OrgService::class, 'org_service_id');
     }
 }

@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\FolderController;
+use App\Http\Controllers\Api\LoanApplication\LoanApplicationController;
 use App\Http\Controllers\Api\NoticeLevelController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OrgAreaController;
@@ -21,7 +22,11 @@ use App\Http\Controllers\Api\OrgCompanyUserController;
 use App\Http\Controllers\Api\OrgEventController;
 use App\Http\Controllers\Api\OrgPaymentLinkMappingController;
 use App\Http\Controllers\Api\OrgPositionController;
+use App\Http\Controllers\Api\OrgServiceController;
+use App\Http\Controllers\Api\Partner\PartnerSaleController;
 use App\Http\Controllers\Api\SalesController;
+use App\Http\Controllers\Api\Store\PublicOrgServiceController;
+use App\Http\Controllers\Api\Store\StripeCheckoutController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -34,6 +39,14 @@ Route::prefix('v1')->group(function () {
     // 🔓 Rutas Públicas
     Route::post('/register', RegisterController::class);
     Route::post('/login', AuthLoginController::class);
+
+    // ruta de la tienda donde se mostraran los servicios
+    Route::get('/public/org-companies/{uid}/services', [PublicOrgServiceController::class, 'index']);
+    Route::get('/public/org-companies/{uid}/validate-referral/{code}', [PublicOrgServiceController::class, 'validateReferral']);
+
+    // ruta para iniciar sesion de pago
+    // routes/api.php
+    Route::post('/public/org-companies/{uid}/checkout/create-session', [StripeCheckoutController::class, 'createSession']);
 
     Route::get('/org-invitations/{token}', [OrgCompanyInvitationController::class, 'show']);
     Route::post('/org-invitations/{token}/accept', [OrgCompanyInvitationController::class, 'accept']);
@@ -50,6 +63,7 @@ Route::prefix('v1')->group(function () {
         });
 
         Route::get('/me', AuthMeController::class);
+
         Route::post('/logout', AuthLogoutController::class);
 
         // 👤 Account
@@ -94,10 +108,6 @@ Route::prefix('v1')->group(function () {
             // 📊 Dashboard
             Route::get('/dashboard', [DashboardController::class, 'overview'])->middleware('can:view_dashboard');
 
-            // ==========================================
-            // 👥 GESTIÓN DE USUARIOS DE LA COMPAÑÍA
-            // ==========================================
-
             // 📖 Directorio Público (Solo requiere estar en la compañía) se usara para consultas directa a usuario
             Route::get('/directory', [OrgCompanyUserController::class, 'directory']);
 
@@ -141,6 +151,21 @@ Route::prefix('v1')->group(function () {
                     Route::post('/payment-link-mappings', [OrgPaymentLinkMappingController::class, 'store']);
                     Route::put('/payment-link-mappings/{mappingUid}', [OrgPaymentLinkMappingController::class, 'update']);
                     Route::delete('/payment-link-mappings/{mappingUid}', [OrgPaymentLinkMappingController::class, 'destroy']);
+                });
+            });
+
+            // ==========================================
+            // 📦 SERVICIOS / STRIPE PRODUCTS
+            // ==========================================
+            Route::group([], function () {
+                // Ver Servicios
+                Route::get('/services', [OrgServiceController::class, 'index'])->middleware('can:view_services');
+
+                // Gestionar Servicios
+                Route::middleware('can:manage_services')->group(function () {
+                    Route::post('/services', [OrgServiceController::class, 'store']);
+                    Route::put('/services/{serviceUid}', [OrgServiceController::class, 'update']);
+                    Route::delete('/services/{serviceUid}', [OrgServiceController::class, 'destroy']);
                 });
             });
 
@@ -265,6 +290,46 @@ Route::prefix('v1')->group(function () {
                 Route::get('/time-tracking', [\App\Http\Controllers\Api\OrgTimeTrackingController::class, 'index'])->middleware('can:view_time_tracking');
             });
 
+            // ==========================================
+            // 🏠 INVESTOR READY (ADMIN MODULE)
+            // ==========================================
+            Route::group([], function () {
+                // Configuración de Tiers/Niveles (Start, Plus, Elite)
+                Route::get('/investor-tiers', [\App\Http\Controllers\Api\OrgInvestorTierController::class, 'index']);
+
+                Route::middleware('can:manage_investors')->group(function () {
+                    Route::post('/investor-tiers', [\App\Http\Controllers\Api\OrgInvestorTierController::class, 'store']);
+                    Route::put('/investor-tiers/{tierUid}', [\App\Http\Controllers\Api\OrgInvestorTierController::class, 'update']);
+                    Route::delete('/investor-tiers/{tierUid}', [\App\Http\Controllers\Api\OrgInvestorTierController::class, 'destroy']);
+                });
+
+                // Gestión de Propiedades de los Inversionistas
+                Route::get('/properties', [\App\Http\Controllers\Api\OrgPropertyController::class, 'index']);
+
+                Route::middleware('can:manage_investors')->group(function () {
+                    Route::post('/properties', [\App\Http\Controllers\Api\OrgPropertyController::class, 'store']);
+                    Route::put('/properties/{propertyUid}', [\App\Http\Controllers\Api\OrgPropertyController::class, 'update']);
+                    Route::delete('/properties/{propertyUid}', [\App\Http\Controllers\Api\OrgPropertyController::class, 'destroy']);
+                });
+            });
+
+            // ==========================================
+            // 📝 PRÉSTAMOS / LOAN APPLICATIONS (User Flow)
+            // ==========================================
+            Route::group([], function () {
+                // Obtener o inicializar la solicitud del usuario logueado
+                Route::get('/loans/my-application', [LoanApplicationController::class, 'myApplication']);
+
+                // Guardar progreso de una sección específica (requiere el UID de la solicitud)
+                Route::post('/loans/{loanUid}/sections', [LoanApplicationController::class, 'saveSection']);
+            });
+
+            // 🤝 PARTNERS (Opt-in Program) - NUEVA RUTA
+
+            Route::get('/partner-program/status', [\App\Http\Controllers\Api\Partner\PartnerOptInController::class, 'status']);
+            Route::post('/partner-program/join', [\App\Http\Controllers\Api\Partner\PartnerOptInController::class, 'join']);
+            Route::post('partner/sales/export-pdf', [PartnerSaleController::class, 'exportPdf']);
+
         });
 
         // ========================================================================
@@ -279,5 +344,59 @@ Route::prefix('v1')->group(function () {
         Route::post('/notifications/read-all', [NotificationController::class, 'markAll']);
         Route::get('/notice-levels', [NoticeLevelController::class, 'index']);
 
+    });
+
+    // Rutas de Afiliados
+    Route::prefix('partner')->group(function () {
+        // Registro Público
+        Route::post('/register', App\Http\Controllers\Api\Partner\AffiliateRegisterController::class);
+
+        // Rutas Protegidas
+        Route::middleware('auth:sanctum')->group(function () {
+
+            Route::get('/sales', [PartnerSaleController::class, 'index']);
+
+            Route::get('/me', App\Http\Controllers\Api\Partner\AffiliateMeController::class);
+
+            // ==========================================
+            // 🏢 MÓDULO INVESTOR READY (Portal del Partner)
+            // ==========================================
+            Route::prefix('investor-ready')->group(function () {
+
+                // Propiedades del Partner
+                Route::get('/properties', [\App\Http\Controllers\Api\Partner\InvestorReady\PropertyController::class, 'index']);
+                Route::get('/properties/{propertyUid}', [\App\Http\Controllers\Api\Partner\InvestorReady\PropertyController::class, 'show']);
+
+                // Niveles y Beneficios
+                Route::get('/my-tier', [\App\Http\Controllers\Api\Partner\InvestorReady\InvestorTierController::class, 'current']);
+                Route::get('/tiers', [\App\Http\Controllers\Api\Partner\InvestorReady\InvestorTierController::class, 'index']);
+
+            });
+
+            // ==========================================
+            // 📁 MIS ARCHIVOS (Carpetas y Documentos Globales del Usuario)
+            // ==========================================
+            // Requerimos el UID de la compañía en la URL para saber a qué entorno asociar los registros,
+            // pero NO validamos permisos de Spatie.
+            Route::prefix('companies/{companyUid}')->group(function () {
+
+                // 📂 Gestión de Carpetas
+                Route::get('/folders', [\App\Http\Controllers\Api\Partner\PartnerFolderController::class, 'index']);
+                Route::post('/folders', [\App\Http\Controllers\Api\Partner\PartnerFolderController::class, 'store']);
+                Route::get('/folders/{folderUid}', [\App\Http\Controllers\Api\Partner\PartnerFolderController::class, 'show']);
+                Route::put('/folders/{folderUid}', [\App\Http\Controllers\Api\Partner\PartnerFolderController::class, 'update']);
+                Route::delete('/folders/{folderUid}', [\App\Http\Controllers\Api\Partner\PartnerFolderController::class, 'destroy']);
+
+                // 📄 Gestión de Documentos
+                Route::post('/documents/presign', [\App\Http\Controllers\Api\Partner\PartnerDocumentController::class, 'presign']);
+                Route::post('/documents/confirm', [\App\Http\Controllers\Api\Partner\PartnerDocumentController::class, 'confirm']);
+                Route::delete('/documents/{documentUid}', [\App\Http\Controllers\Api\Partner\PartnerDocumentController::class, 'destroy']);
+
+                // 👁️ Visualizar/Descargar (Firma URL de lectura temporal de R2)
+                Route::get('/documents/{documentUid}/view', [\App\Http\Controllers\Api\Partner\PartnerDocumentController::class, 'view']);
+                Route::get('/documents/{documentUid}/download', [\App\Http\Controllers\Api\Partner\PartnerDocumentController::class, 'download']);
+            });
+
+        });
     });
 });
