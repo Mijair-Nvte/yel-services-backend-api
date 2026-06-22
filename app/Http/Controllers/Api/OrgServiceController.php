@@ -51,6 +51,9 @@ class OrgServiceController extends Controller
             $request->validate([
                 'name' => 'required|string|max:255',
                 'description' => 'nullable|string',
+                'availability_type' => 'required|string|in:all,restricted', // Validación nueva
+                'available_states' => 'nullable|array', // Debe ser array
+                'available_states.*' => 'string|size:2', // Ej: "TX", "FL"
                 'stripe_product_id' => 'required|string|max:255',
                 'stripe_price_id' => 'required|string|max:255',
                 'default_commission_type' => 'required|string|in:percentage,fixed',
@@ -67,10 +70,15 @@ class OrgServiceController extends Controller
                 return response()->json(['message' => 'Este Stripe Price ID ya está registrado en otro servicio.'], 422);
             }
 
+            // Forzar a null si el tipo es 'all' para no tener basura en la BD
+            $availableStates = $request->availability_type === 'all' ? null : $request->available_states;
+
             $service = OrgService::create([
                 'org_company_id' => $company->id,
                 'name' => $request->name,
                 'description' => $request->description,
+                'availability_type' => $request->availability_type,
+                'available_states' => $availableStates,
                 'stripe_product_id' => $request->stripe_product_id,
                 'stripe_price_id' => $request->stripe_price_id,
                 'default_commission_type' => $request->default_commission_type,
@@ -108,6 +116,9 @@ class OrgServiceController extends Controller
             $request->validate([
                 'name' => 'sometimes|required|string|max:255',
                 'description' => 'nullable|string',
+                'availability_type' => 'sometimes|required|string|in:all,restricted',
+                'available_states' => 'nullable|array',
+                'available_states.*' => 'string|size:2',
                 'stripe_product_id' => 'sometimes|required|string|max:255',
                 'stripe_price_id' => 'sometimes|required|string|max:255',
                 'default_commission_type' => 'sometimes|required|string|in:percentage,fixed',
@@ -115,7 +126,6 @@ class OrgServiceController extends Controller
                 'is_active' => 'boolean',
             ]);
 
-            // Si están actualizando el price_id, verificamos que no colisione con otro servicio existente
             if ($request->has('stripe_price_id') && $request->stripe_price_id !== $service->stripe_price_id) {
                 $exists = OrgService::where('org_company_id', $company->id)
                     ->where('stripe_price_id', $request->stripe_price_id)
@@ -126,7 +136,14 @@ class OrgServiceController extends Controller
                 }
             }
 
-            $service->update($request->all());
+            $updateData = $request->all();
+
+            // Limpiar los estados si se cambia a 'all'
+            if ($request->has('availability_type') && $request->availability_type === 'all') {
+                $updateData['available_states'] = null;
+            }
+
+            $service->update($updateData);
 
             return response()->json([
                 'message' => 'Servicio actualizado correctamente.',

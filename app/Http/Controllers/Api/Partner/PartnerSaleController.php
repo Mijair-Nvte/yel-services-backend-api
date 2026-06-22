@@ -3,10 +3,11 @@
 namespace App\Http\Controllers\Api\Partner;
 
 use App\Http\Controllers\Controller;
-use App\Models\OrgSale;
 use App\Models\OrgCompany;
-use Illuminate\Http\Request;
+use App\Models\OrgSale;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
+
 class PartnerSaleController extends Controller
 {
     /**
@@ -17,21 +18,22 @@ class PartnerSaleController extends Controller
         // Obtenemos el ID del usuario autenticado (el Partner)
         $partnerId = $request->user()->id;
 
-        $sales = OrgSale::where('seller_id', $partnerId)
+        $sales = OrgSale::with(['customer:id,first_name,last_name,email']) // Eager loading optimizado para el partner
+            ->where('seller_id', $partnerId)
             ->orderBy('created_at', 'desc')
-            // Seleccionamos solo los campos que el partner necesita ver
             ->select([
                 'id',
                 'uid',
-                'customer_name',
+                'org_customer_id', // 🌟 CRITICAL: Clave foránea necesaria para que funcione el 'with'
                 'product_name',
                 'total_amount',
+                'payment_status',
                 'commission_amount',
                 'commission_status',
                 'seller_payout_date',
                 'created_at',
             ])
-            ->paginate(15); // Paginación de 15 en 15 para la tabla
+            ->paginate(15);
 
         return response()->json([
             'success' => true,
@@ -53,9 +55,10 @@ class PartnerSaleController extends Controller
                 'sale_ids.*' => 'integer',
             ]);
 
-            // Obtenemos SOLO las ventas que pertenecen a este Partner (auth->id)
-            $sales = OrgSale::where('org_company_id', $company->id)
-                ->where('seller_id', auth()->id()) // IMPORTANTE: Seguridad para que no vea ventas de otros
+            // Obtenemos SOLO las ventas del Partner y cargamos su cliente
+            $sales = OrgSale::with('customer') // 🌟 Añadido para el reporte PDF del partner
+                ->where('org_company_id', $company->id)
+                ->where('seller_id', auth()->id()) // Seguridad
                 ->whereIn('id', $request->sale_ids)
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -78,6 +81,7 @@ class PartnerSaleController extends Controller
                 'company' => $company,
                 'partner' => auth()->user(), // Pasamos los datos del partner
                 'totalAmount' => $totalAmount,
+                  
                 'totalCommissions' => $totalCommissions,
                 'fechaReporte' => now()->format('d/m/Y H:i'),
                 'logoBase64' => $logoBase64,

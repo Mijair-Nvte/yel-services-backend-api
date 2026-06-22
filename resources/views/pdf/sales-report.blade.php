@@ -164,10 +164,10 @@
             @foreach($sales as $sale)
             <tr>
                 <td>{{ \Carbon\Carbon::parse($sale->created_at)->format('d/m/Y') }}</td>
-                <td>
-                    <strong>{{ $sale->customer_name ?? 'Cliente Desconocido' }}</strong><br>
-                    <span class="product-name">{{ $sale->product_name }}</span>
-                </td>
+              <td>
+    <strong>{{ $sale->customer ? trim($sale->customer->first_name . ' ' . $sale->customer->last_name) : 'Cliente Desconocido' }}</strong><br>
+    <span class="product-name">{{ $sale->product_name }}</span>
+</td>
                 <td>${{ number_format($sale->total_amount, 2) }}</td>
                 <td>{{ $sale->seller ? $sale->seller->name : 'N/A' }}</td>
                 <td style="font-weight: bold;">${{ number_format($sale->commission_amount, 2) }}</td>

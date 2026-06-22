@@ -27,7 +27,7 @@ class SalesController extends Controller
             $this->authorizeWorkspace($company);
             $this->authorize('view_sales');
 
-            $sales = OrgSale::with(['seller:id,name,email', 'processor:id,name,email'])
+            $sales = OrgSale::with(['seller:id,name,email', 'processor:id,name,email', 'customer'])
                 ->where('org_company_id', $company->id)
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -72,7 +72,7 @@ class SalesController extends Controller
             ]);
 
             // Recargamos relaciones para el frontend
-            $sale->load(['seller:id,name,email', 'processor:id,name,email']);
+            $sale->load(['seller:id,name,email', 'processor:id,name,email', 'customer']);
 
             return response()->json([
                 'message' => 'Estatus y fecha de comisión actualizados.',
@@ -103,7 +103,7 @@ class SalesController extends Controller
                 'sale_ids.*' => 'integer',
             ]);
 
-            $sales = OrgSale::with(['seller:id,name,email'])
+            $sales = OrgSale::with(['seller:id,name,email', 'customer'])
                 ->where('org_company_id', $company->id)
                 ->whereIn('id', $request->sale_ids)
                 ->orderBy('created_at', 'desc')
@@ -158,20 +158,36 @@ class SalesController extends Controller
                 'seller_id' => 'nullable|exists:users,id',
             ]);
 
-            $sale = OrgSale::where('org_company_id', $company->id)
+            // Obtenemos la venta JUNTO con su cliente
+            $sale = OrgSale::with('customer')
+                ->where('org_company_id', $company->id)
                 ->where('id', $saleId)
                 ->firstOrFail();
 
+            // 1. Actualizamos la Venta (producto, monto, vendedor)
             $sale->update([
-                'customer_name' => $request->customer_name,
-                'customer_email' => $request->customer_email,
-                'customer_phone' => $request->customer_phone,
                 'product_name' => $request->product_name,
                 'total_amount' => $request->total_amount,
                 'seller_id' => $request->seller_id,
             ]);
 
-            $sale->load(['seller:id,name,email', 'processor:id,name,email']);
+            // 2. Actualizamos el Cliente (si existe)
+            if ($sale->customer) {
+                // Separar nombre y apellido por si el front envía "customer_name" unido
+                $nameParts = explode(' ', trim($request->customer_name), 2);
+                $firstName = $nameParts[0] ?? 'Cliente';
+                $lastName = $nameParts[1] ?? null;
+
+                $sale->customer->update([
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
+                    'email' => $request->customer_email,
+                    'phone' => $request->customer_phone,
+                ]);
+            }
+
+           // Recargamos relaciones para enviar al frontend
+            $sale->load(['seller:id,name,email', 'processor:id,name,email', 'customer']);
 
             return response()->json([
                 'message' => 'Venta actualizada correctamente.',

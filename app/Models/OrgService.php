@@ -16,6 +16,8 @@ class OrgService extends Model
         'org_company_id',
         'name',
         'description',
+        'availability_type', 
+        'available_states',  
         'stripe_product_id',
         'stripe_price_id',
         'default_commission_type',
@@ -26,6 +28,7 @@ class OrgService extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'default_commission_value' => 'decimal:2',
+        'available_states' => 'array',
     ];
 
     // Autogenerar el UID cuando se crea el servicio

@@ -14,15 +14,15 @@ class OrgSale extends Model
     protected $fillable = [
         'uid',
         'org_company_id',
+        'org_customer_id',
         'source_type',
         'source_id',
-        'customer_name',
-        'customer_email',
-        'customer_phone',
+        
         'customer_origin',
         'product_name',
         'org_service_id',
         'total_amount',
+        'payment_status',
         'seller_id',
        'referral_code',
         'commission_amount',
@@ -71,4 +71,11 @@ class OrgSale extends Model
     {
         return $this->belongsTo(OrgService::class, 'org_service_id');
     }
+
+
+    public function customer()
+    {
+        return $this->belongsTo(OrgCustomer::class, 'org_customer_id');
+    }
+    
 }

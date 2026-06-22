@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Auth\LoginController as AuthLoginController;
 use App\Http\Controllers\Api\Auth\LogoutController as AuthLogoutController;
 use App\Http\Controllers\Api\Auth\MeController as AuthMeController;
 use App\Http\Controllers\Api\Auth\RegisterController;
+use App\Http\Controllers\Api\Auth\VerifyOtpController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DocumentController;
@@ -20,6 +21,7 @@ use App\Http\Controllers\Api\OrgCompanyLinkController;
 use App\Http\Controllers\Api\OrgCompanyNoticeController;
 use App\Http\Controllers\Api\OrgCompanyUserController;
 use App\Http\Controllers\Api\OrgEventController;
+use App\Http\Controllers\Api\OrgInsuranceApplicationController;
 use App\Http\Controllers\Api\OrgPaymentLinkMappingController;
 use App\Http\Controllers\Api\OrgPositionController;
 use App\Http\Controllers\Api\OrgServiceController;
@@ -39,6 +41,8 @@ Route::prefix('v1')->group(function () {
     // 🔓 Rutas Públicas
     Route::post('/register', RegisterController::class);
     Route::post('/login', AuthLoginController::class);
+    Route::post('/login/verify', VerifyOtpController::class);
+    Route::post('/auth/request-verification', App\Http\Controllers\Api\Auth\RequestVerificationController::class);
 
     // ruta de la tienda donde se mostraran los servicios
     Route::get('/public/org-companies/{uid}/services', [PublicOrgServiceController::class, 'index']);
@@ -291,6 +295,23 @@ Route::prefix('v1')->group(function () {
             });
 
             // ==========================================
+            // 🛡️ SEGUROS / INSURANCE (Admin Module)
+            // ==========================================
+            Route::group([], function () {
+                // Ver Solicitudes
+                Route::middleware('can:view_insurance')->group(function () {
+                    Route::get('/insurance-applications', [OrgInsuranceApplicationController::class, 'index']);
+                    Route::get('/insurance-applications/{applicationUid}', [OrgInsuranceApplicationController::class, 'show']);
+                });
+
+                // Gestionar Solicitudes
+                Route::middleware('can:manage_insurance')->group(function () {
+                    Route::put('/insurance-applications/{applicationUid}', [OrgInsuranceApplicationController::class, 'update']);
+                    Route::delete('/insurance-applications/{applicationUid}', [OrgInsuranceApplicationController::class, 'destroy']);
+                });
+            });
+
+            // ==========================================
             // 🏠 INVESTOR READY (ADMIN MODULE)
             // ==========================================
             Route::group([], function () {
@@ -351,6 +372,8 @@ Route::prefix('v1')->group(function () {
         // Registro Público
         Route::post('/register', App\Http\Controllers\Api\Partner\AffiliateRegisterController::class);
 
+        Route::post('/register/verify', App\Http\Controllers\Api\Partner\VerifyRegistrationController::class);
+
         // Rutas Protegidas
         Route::middleware('auth:sanctum')->group(function () {
 
@@ -395,6 +418,21 @@ Route::prefix('v1')->group(function () {
                 // 👁️ Visualizar/Descargar (Firma URL de lectura temporal de R2)
                 Route::get('/documents/{documentUid}/view', [\App\Http\Controllers\Api\Partner\PartnerDocumentController::class, 'view']);
                 Route::get('/documents/{documentUid}/download', [\App\Http\Controllers\Api\Partner\PartnerDocumentController::class, 'download']);
+
+                // ==========================================
+                // 🛡️ YEL INSURANCE (Portal del Cliente/Partner)
+                // ==========================================
+                Route::prefix('insurance-applications')->group(function () {
+                    // 📋 Listar solicitudes (GET: /api/v1/partner/companies/{companyUid}/insurance-applications)
+                    Route::get('/', [\App\Http\Controllers\Api\Partner\Insurance\InsuranceApplicationController::class, 'index']);
+
+                    // ➕ Crear nueva solicitud (POST: /api/v1/partner/companies/{companyUid}/insurance-applications)
+                    Route::post('/', [\App\Http\Controllers\Api\Partner\Insurance\InsuranceApplicationController::class, 'store']);
+
+                    // 👁️ Ver detalle específico (GET: /api/v1/partner/companies/{companyUid}/insurance-applications/{applicationUid})
+                    Route::get('/{applicationUid}', [\App\Http\Controllers\Api\Partner\Insurance\InsuranceApplicationController::class, 'show']);
+                });
+
             });
 
         });
