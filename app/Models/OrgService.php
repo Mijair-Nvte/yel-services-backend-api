@@ -20,6 +20,7 @@ class OrgService extends Model
         'available_states',  
         'stripe_product_id',
         'stripe_price_id',
+        'price',
         'default_commission_type',
         'default_commission_value',
         'is_active',
@@ -27,6 +28,7 @@ class OrgService extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'price' => 'decimal:2',
         'default_commission_value' => 'decimal:2',
         'available_states' => 'array',
     ];

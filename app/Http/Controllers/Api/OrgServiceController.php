@@ -56,6 +56,7 @@ class OrgServiceController extends Controller
                 'available_states.*' => 'string|size:2', // Ej: "TX", "FL"
                 'stripe_product_id' => 'required|string|max:255',
                 'stripe_price_id' => 'required|string|max:255',
+                'price' => 'nullable|numeric|min:0',
                 'default_commission_type' => 'required|string|in:percentage,fixed',
                 'default_commission_value' => 'required|numeric|min:0',
                 'is_active' => 'boolean',
@@ -81,6 +82,7 @@ class OrgServiceController extends Controller
                 'available_states' => $availableStates,
                 'stripe_product_id' => $request->stripe_product_id,
                 'stripe_price_id' => $request->stripe_price_id,
+                'price' => $request->price,
                 'default_commission_type' => $request->default_commission_type,
                 'default_commission_value' => $request->default_commission_value,
                 'is_active' => $request->is_active ?? true,
@@ -121,6 +123,7 @@ class OrgServiceController extends Controller
                 'available_states.*' => 'string|size:2',
                 'stripe_product_id' => 'sometimes|required|string|max:255',
                 'stripe_price_id' => 'sometimes|required|string|max:255',
+                'price' => 'sometimes|nullable|numeric|min:0',
                 'default_commission_type' => 'sometimes|required|string|in:percentage,fixed',
                 'default_commission_value' => 'sometimes|required|numeric|min:0',
                 'is_active' => 'boolean',

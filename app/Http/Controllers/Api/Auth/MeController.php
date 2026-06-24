@@ -16,7 +16,7 @@ class MeController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'avatar' => $user->profile->avatar ?? null,
+                'avatar' => $user->profile->avatar_url ?? null,
             ],
         ]);
     }
