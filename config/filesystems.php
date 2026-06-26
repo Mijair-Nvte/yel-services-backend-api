@@ -69,6 +69,16 @@ return [
             'url' => env('R2_PUBLIC_URL'),
             'use_path_style_endpoint' => true,
         ],
+        'r2_public' => [
+            'driver' => 's3',
+            'key' => env('R2_PUBLIC_ACCESS_KEY_ID'),
+            'secret' => env('R2_PUBLIC_SECRET_ACCESS_KEY'),
+            'region' => env('R2_REGION', 'auto'),
+            'bucket' => env('R2_PUBLIC_BUCKET'),
+            'endpoint' => env('R2_PUBLIC_ENDPOINT'),
+            'url' => env('R2_PUBLIC_ASSETS_URL'),
+            'use_path_style_endpoint' => true,
+        ],
 
     ],
 

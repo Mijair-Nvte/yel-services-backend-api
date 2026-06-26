@@ -21,7 +21,7 @@ class PublicOrgServiceController extends Controller
             ->where('is_active', true)
             // Por seguridad, seleccionamos solo lo necesario para pintar la web.
             // NO mandamos el stripe_price_id ni datos de comisiones al cliente final.
-            ->select('uid', 'name', 'description', 'availability_type', 'available_states')
+            ->select('uid', 'name', 'description','price', 'availability_type', 'available_states','cover_image')
             ->orderBy('name', 'asc')
             ->get();
 

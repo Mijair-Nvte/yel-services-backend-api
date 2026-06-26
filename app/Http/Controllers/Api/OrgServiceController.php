@@ -8,6 +8,7 @@ use App\Models\OrgCompany;
 use App\Models\OrgService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class OrgServiceController extends Controller
@@ -48,6 +49,8 @@ class OrgServiceController extends Controller
             $this->authorizeWorkspace($company);
             $this->authorize('manage_services');
 
+            \Log::info('Datos recibidos:', $request->all());
+
             $request->validate([
                 'name' => 'required|string|max:255',
                 'description' => 'nullable|string',
@@ -59,6 +62,7 @@ class OrgServiceController extends Controller
                 'price' => 'nullable|numeric|min:0',
                 'default_commission_type' => 'required|string|in:percentage,fixed',
                 'default_commission_value' => 'required|numeric|min:0',
+                'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
                 'is_active' => 'boolean',
             ]);
 
@@ -74,10 +78,32 @@ class OrgServiceController extends Controller
             // Forzar a null si el tipo es 'all' para no tener basura en la BD
             $availableStates = $request->availability_type === 'all' ? null : $request->available_states;
 
+            $coverImagePath = null;
+            if ($request->hasFile('cover_image')) {
+                $file = $request->file('cover_image');
+
+                // 1. Obtenemos el nombre original sin la extensión
+                $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+
+                // 2. Limpiamos el nombre original (quita espacios, emojis, acentos)
+                $cleanName = \Str::slug($originalName);
+
+                // 3. Obtenemos la extensión (jpg, png, webp)
+                $extension = $file->getClientOriginalExtension();
+
+                // 4. Armamos nuestro nombre organizado: nombre-limpio-timestamp.extension
+                // Ej: mi-portada-genial-17189382.webp
+                $fileName = $cleanName.'-'.time().'.'.$extension;
+
+                // 5. Usamos storeAs para decirle a Laravel EXACTAMENTE cómo llamarlo
+                $coverImagePath = $file->storeAs('services_covers', $fileName, 'r2_public');
+            }
+
             $service = OrgService::create([
                 'org_company_id' => $company->id,
                 'name' => $request->name,
                 'description' => $request->description,
+                'cover_image' => $coverImagePath,
                 'availability_type' => $request->availability_type,
                 'available_states' => $availableStates,
                 'stripe_product_id' => $request->stripe_product_id,
@@ -127,6 +153,7 @@ class OrgServiceController extends Controller
                 'default_commission_type' => 'sometimes|required|string|in:percentage,fixed',
                 'default_commission_value' => 'sometimes|required|numeric|min:0',
                 'is_active' => 'boolean',
+                'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             ]);
 
             if ($request->has('stripe_price_id') && $request->stripe_price_id !== $service->stripe_price_id) {
@@ -144,6 +171,27 @@ class OrgServiceController extends Controller
             // Limpiar los estados si se cambia a 'all'
             if ($request->has('availability_type') && $request->availability_type === 'all') {
                 $updateData['available_states'] = null;
+            }
+
+            if ($request->hasFile('cover_image')) {
+                // Borramos la imagen anterior de Cloudflare R2
+                if ($service->cover_image) {
+                    Storage::disk('r2_public')->delete($service->cover_image);
+                }
+
+                $file = $request->file('cover_image');
+
+                // Armamos el nuevo nombre organizado
+                $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                $cleanName = \Str::slug($originalName);
+                $extension = $file->getClientOriginalExtension();
+
+                // Aquí puedes incluso usar el UID del servicio para que sea aún más organizado
+                // Ej: service-abc123xyz-17189382.webp
+                $fileName = 'service-'.$service->uid.'-'.time().'.'.$extension;
+
+                // Guardamos con el nuevo nombre
+                $updateData['cover_image'] = $file->storeAs('services_covers', $fileName, 'r2_public');
             }
 
             $service->update($updateData);
