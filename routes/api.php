@@ -433,6 +433,9 @@ Route::prefix('v1')->group(function () {
                     Route::get('/{applicationUid}', [\App\Http\Controllers\Api\Partner\Insurance\InsuranceApplicationController::class, 'show']);
                 });
 
+                // 👇 Ruta para el catálogo de servicios del Partner
+                Route::get('/partner-services', [\App\Http\Controllers\Api\Partner\PartnerServiceController::class, 'index']);
+
             });
 
         });

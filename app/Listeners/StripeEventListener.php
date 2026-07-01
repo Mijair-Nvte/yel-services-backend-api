@@ -6,8 +6,14 @@ use App\Models\OrgCompanyPartner;
 use App\Models\OrgCustomer;
 use App\Models\OrgSale;
 use App\Models\OrgService;
-use Illuminate\Support\Facades\Log; // 🌟 IMPORTANTE: Agregamos el modelo de clientes
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail; // 🌟 IMPORTANTE: Agregamos el modelo de clientes
 use Laravel\Cashier\Events\WebhookReceived;
+
+
+use App\Mail\Store\ServicePurchaseSuccessMail;
+use App\Mail\Store\ServicePurchaseFailedMail;
+use App\Mail\Store\InternalSaleNotificationMail;
 
 class StripeEventListener
 {
@@ -82,6 +88,44 @@ class StripeEventListener
 
                 Log::info("✅ Venta UID {$sale->uid} (Pago: {$stripePaymentStatus}) y Comisión ({$commissionAmount}) registradas. Cliente ID: {$customerId}");
 
+
+                // ================================================================
+                // 5. 🚀 ENVÍO DE CORREOS EN SEGUNDO PLANO (AQUÍ SE EJECUTAN)
+                // ================================================================
+                
+                if ($stripePaymentStatus === 'paid') {
+                    // A) Enviar correo al Cliente
+                    if ($customerEmail) {
+                        // Al usar ->send(), como la clase implementa ShouldQueue, Laravel lo manda a la cola automáticamente.
+                        Mail::to($customerEmail)->send(new ServicePurchaseSuccessMail($sale, $customerName));
+                    }
+
+                    // B) Enviar notificación al Administrador / Dueño de la empresa
+                    $company = OrgCompany::find($companyId);
+                    // Suponiendo que tu modelo OrgCompany tiene relación con su dueño (owner_id)
+                    if ($company && $company->owner_id) {
+                        $adminUser = User::find($company->owner_id);
+                        if ($adminUser) {
+                            Mail::to($adminUser->email)->send(new InternalSaleNotificationMail($sale, $adminUser->name, 'Administrador'));
+                        }
+                    }
+
+                    // C) Enviar notificación al Afiliado (Si usó código)
+                    if ($sellerId) {
+                        $sellerUser = User::find($sellerId);
+                        if ($sellerUser) {
+                            Mail::to($sellerUser->email)->send(new InternalSaleNotificationMail($sale, $sellerUser->name, 'Afiliado'));
+                        }
+                    }
+                } else {
+                    // Si el pago no pasó, enviamos el de falla
+                    if ($customerEmail) {
+                        Mail::to($customerEmail)->send(new ServicePurchaseFailedMail($sale, $customerName));
+                    }
+                }
+                // ================================================================
+
+                
             } catch (\Exception $e) {
                 Log::error('❌ Error en Listener al guardar Venta Stripe: '.$e->getMessage());
             }
