@@ -420,6 +420,17 @@ Route::prefix('v1')->group(function () {
                 Route::get('/documents/{documentUid}/download', [\App\Http\Controllers\Api\Partner\PartnerDocumentController::class, 'download']);
 
                 // ==========================================
+                // 📅 CALENDARIO (Portal del Partner - Solo Lectura)
+                // ==========================================
+                Route::prefix('events')->group(function () {
+                    // 📋 Listar eventos en un rango de fechas
+                    Route::get('/', [\App\Http\Controllers\Api\Partner\Calendar\CalendarController::class, 'index']);
+
+                    // 👁️ Ver detalle de un evento específico
+                    Route::get('/{eventUid}', [\App\Http\Controllers\Api\Partner\Calendar\CalendarController::class, 'show']);
+                });
+
+                // ==========================================
                 // 🛡️ YEL INSURANCE (Portal del Cliente/Partner)
                 // ==========================================
                 Route::prefix('insurance-applications')->group(function () {
@@ -436,6 +447,16 @@ Route::prefix('v1')->group(function () {
                 // 👇 Ruta para el catálogo de servicios del Partner
                 Route::get('/partner-services', [\App\Http\Controllers\Api\Partner\PartnerServiceController::class, 'index']);
 
+                Route::prefix('loan-applications')->group(function () {
+                    // 📋 Listar solicitudes
+                    Route::get('/', [\App\Http\Controllers\Api\Partner\Loan\LoanApplicationController::class, 'index']);
+
+                    // ➕ Crear nueva solicitud
+                    Route::post('/', [\App\Http\Controllers\Api\Partner\Loan\LoanApplicationController::class, 'store']);
+
+                    // 👁️ Ver detalle específico
+                    Route::get('/{applicationUid}', [\App\Http\Controllers\Api\Partner\Loan\LoanApplicationController::class, 'show']);
+                });
             });
 
         });
