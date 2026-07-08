@@ -24,7 +24,7 @@ class PartnerSaleController extends Controller
             ->select([
                 'id',
                 'uid',
-                'org_customer_id', // 🌟 CRITICAL: Clave foránea necesaria para que funcione el 'with'
+                'org_customer_id', 
                 'product_name',
                 'total_amount',
                 'payment_status',

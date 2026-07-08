@@ -1,10 +1,12 @@
 <?php
 
 use App\Http\Controllers\Api\AccountController;
+use App\Http\Controllers\Api\Auth\ForgotPasswordController;
 use App\Http\Controllers\Api\Auth\LoginController as AuthLoginController;
 use App\Http\Controllers\Api\Auth\LogoutController as AuthLogoutController;
 use App\Http\Controllers\Api\Auth\MeController as AuthMeController;
 use App\Http\Controllers\Api\Auth\RegisterController;
+use App\Http\Controllers\Api\Auth\ResetPasswordController;
 use App\Http\Controllers\Api\Auth\VerifyOtpController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\DashboardController;
@@ -25,10 +27,12 @@ use App\Http\Controllers\Api\OrgInsuranceApplicationController;
 use App\Http\Controllers\Api\OrgPaymentLinkMappingController;
 use App\Http\Controllers\Api\OrgPositionController;
 use App\Http\Controllers\Api\OrgServiceController;
+use App\Http\Controllers\Api\Partner\PartnerDashboardController;
 use App\Http\Controllers\Api\Partner\PartnerSaleController;
 use App\Http\Controllers\Api\SalesController;
 use App\Http\Controllers\Api\Store\PublicOrgServiceController;
 use App\Http\Controllers\Api\Store\StripeCheckoutController;
+use App\Http\Controllers\Api\Yelpro\FolderController as YelproFolderController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -43,6 +47,9 @@ Route::prefix('v1')->group(function () {
     Route::post('/login', AuthLoginController::class);
     Route::post('/login/verify', VerifyOtpController::class);
     Route::post('/auth/request-verification', App\Http\Controllers\Api\Auth\RequestVerificationController::class);
+
+    Route::post('/forgot-password', ForgotPasswordController::class);
+    Route::post('/reset-password', ResetPasswordController::class);
 
     // ruta de la tienda donde se mostraran los servicios
     Route::get('/public/org-companies/{uid}/services', [PublicOrgServiceController::class, 'index']);
@@ -457,8 +464,35 @@ Route::prefix('v1')->group(function () {
                     // 👁️ Ver detalle específico
                     Route::get('/{applicationUid}', [\App\Http\Controllers\Api\Partner\Loan\LoanApplicationController::class, 'show']);
                 });
+
+                // Dashboard Stats & Gráficas de uso exclusivo del Yel Pro
+                Route::get('/dashboard/stats', [PartnerDashboardController::class, 'index']);
             });
 
         });
     });
+
+
+
+     // rutas para yelpro
+     
+    Route::middleware('auth:sanctum')->group(function () {
+
+       
+        Route::prefix('yelpro')->group(function () {
+
+            // Todas las rutas de YelPro requerirán el UID de la compañía
+            Route::prefix('companies/{companyUid}')->group(function () {
+
+                // 📂 Listar carpetas compartidas con YelPro
+                // GET: /api/v1/yelpro/companies/{companyUid}/shared-folders
+                Route::get('/shared-folders', [YelproFolderController::class, 'index']);
+
+                // Aquí puedes ir agregando el resto de endpoints de lectura para YelPro en el futuro...
+            });
+
+        });
+
+    });
+
 });

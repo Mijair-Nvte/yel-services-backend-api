@@ -11,11 +11,16 @@ class Folder extends Model
         'uid',
         'org_company_id',
         'name',
+        'shared_platforms',
         'parent_id',
         'folderable_id',
         'folderable_type',
         'created_by',
         'order',
+    ];
+
+    protected $casts = [
+        'shared_platforms' => 'array',
     ];
 
     protected static function booted()
@@ -25,6 +30,11 @@ class Folder extends Model
         });
     }
 
+    public function scopeForPlatform($query, $platform)
+    {
+        return $query->whereJsonContains('shared_platforms', $platform);
+    }
+    
     // 🔗 Polimórfico
     public function folderable()
     {
