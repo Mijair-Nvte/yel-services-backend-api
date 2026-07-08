@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\SalesController;
 use App\Http\Controllers\Api\Store\PublicOrgServiceController;
 use App\Http\Controllers\Api\Store\StripeCheckoutController;
 use App\Http\Controllers\Api\Yelpro\FolderController as YelproFolderController;
+use App\Http\Controllers\Api\Yelpro\OrgEventYelProController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -472,13 +473,10 @@ Route::prefix('v1')->group(function () {
         });
     });
 
+    // rutas para yelpro
 
-
-     // rutas para yelpro
-     
     Route::middleware('auth:sanctum')->group(function () {
 
-       
         Route::prefix('yelpro')->group(function () {
 
             // Todas las rutas de YelPro requerirán el UID de la compañía
@@ -488,7 +486,8 @@ Route::prefix('v1')->group(function () {
                 // GET: /api/v1/yelpro/companies/{companyUid}/shared-folders
                 Route::get('/shared-folders', [YelproFolderController::class, 'index']);
 
-                // Aquí puedes ir agregando el resto de endpoints de lectura para YelPro en el futuro...
+                Route::get('/events', [OrgEventYelProController::class, 'index']);
+                Route::get('/events/{eventUid}', [OrgEventYelProController::class, 'show']);
             });
 
         });
