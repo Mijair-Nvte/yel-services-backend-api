@@ -60,4 +60,11 @@ class OrgEvent extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    public function attendees()
+    {
+        return $this->belongsToMany(User::class, 'org_event_attendees')
+                    ->withTimestamps();
+    }
+    
 }

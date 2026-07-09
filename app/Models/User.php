@@ -123,4 +123,10 @@ class User extends Authenticatable implements MustVerifyEmail
     }
     
   
+    public function attendingEvents()
+    {
+        return $this->belongsToMany(OrgEvent::class, 'org_event_attendees')
+                    ->withTimestamps();
+    }
+    
 }

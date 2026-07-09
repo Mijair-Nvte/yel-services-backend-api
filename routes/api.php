@@ -488,6 +488,9 @@ Route::prefix('v1')->group(function () {
 
                 Route::get('/events', [OrgEventYelProController::class, 'index']);
                 Route::get('/events/{eventUid}', [OrgEventYelProController::class, 'show']);
+
+                Route::post('/events/{eventUid}/attendance', [OrgEventYelProController::class, 'toggleAttendance']);
+                
             });
 
         });
