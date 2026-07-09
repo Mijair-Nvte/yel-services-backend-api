@@ -32,7 +32,7 @@ use App\Http\Controllers\Api\Partner\PartnerSaleController;
 use App\Http\Controllers\Api\SalesController;
 use App\Http\Controllers\Api\Store\PublicOrgServiceController;
 use App\Http\Controllers\Api\Store\StripeCheckoutController;
-use App\Http\Controllers\Api\Yelpro\FolderController as YelproFolderController;
+use App\Http\Controllers\Api\Yelpro\YelproFolderController;
 use App\Http\Controllers\Api\Yelpro\OrgEventYelProController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
@@ -282,7 +282,8 @@ Route::prefix('v1')->group(function () {
                     Route::post('/folders', [FolderController::class, 'store']);
                     Route::put('/folders/{folder}', [FolderController::class, 'update']);
                     Route::delete('/folders/{folder}', [FolderController::class, 'destroy']);
-
+                    Route::post('/folders/{folderUid}/compartir', [FolderController::class, 'compartir']);
+                   
                     Route::post('/documents', [DocumentController::class, 'store']);
                     Route::delete('/documents/{documentUid}', [DocumentController::class, 'destroy']);
                     Route::post('/documents/presign', [DocumentController::class, 'presign']);
@@ -490,7 +491,7 @@ Route::prefix('v1')->group(function () {
                 Route::get('/events/{eventUid}', [OrgEventYelProController::class, 'show']);
 
                 Route::post('/events/{eventUid}/attendance', [OrgEventYelProController::class, 'toggleAttendance']);
-                
+
             });
 
         });

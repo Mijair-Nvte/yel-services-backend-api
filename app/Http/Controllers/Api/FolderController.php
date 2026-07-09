@@ -199,4 +199,57 @@ class FolderController extends Controller
         // 3. Finalmente, borrar la carpeta actual
         $folder->delete();
     }
+
+    /**
+     * 🌐 Compartir carpeta en diferentes plataformas
+     */
+    public function compartir(Request $request, string $uid, string $folderUid)
+    {
+        // 1. Validar qué plataforma nos envían (ej: 'yel_pro', 'clientes', 'whatsapp')
+        $data = $request->validate([
+            'platform' => 'required|string|max:50',
+        ]);
+
+        // 2. Validar que la compañía existe
+        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+
+        // 3. Buscar la carpeta asegurando que pertenezca a la compañía
+        $folder = Folder::where('uid', $folderUid)
+            ->where('org_company_id', $company->id)
+            ->firstOrFail();
+
+        try {
+            // 4. Obtenemos las plataformas actuales (si es null, lo iniciamos como array)
+            $currentPlatforms = $folder->shared_platforms ?? [];
+
+            // 5. Si la plataforma no está en el array, la agregamos y guardamos
+            if (! in_array($data['platform'], $currentPlatforms)) {
+                $currentPlatforms[] = $data['platform'];
+
+                $folder->update([
+                    'shared_platforms' => $currentPlatforms,
+                ]);
+            }
+
+            // 6. Generamos la URL. (Ajusta la ruta según cómo funcione tu frontend)
+            $shareUrl = url("/plataforma/carpeta-compartida/{$folder->uid}");
+
+            return response()->json([
+                'message' => 'Carpeta compartida con éxito.',
+                'folder_name' => $folder->name,
+                'shared_platforms' => $folder->shared_platforms,
+                'share_url' => $shareUrl,
+            ], 200);
+
+        } catch (\Throwable $e) {
+            Log::error('Error al compartir carpeta', [
+                'folder_uid' => $folderUid,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'No se pudo procesar la acción de compartir.',
+            ], 500);
+        }
+    }
 }
