@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Cashier\Billable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -97,7 +97,6 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(ChatParticipant::class);
     }
 
-
     // Relación para traer las propiedades de este inversionista
     public function orgProperties()
     {
@@ -121,12 +120,31 @@ class User extends Authenticatable implements MustVerifyEmail
             ->orderBy('min_properties', 'desc')
             ->first();
     }
-    
-  
+
     public function attendingEvents()
     {
         return $this->belongsToMany(OrgEvent::class, 'org_event_attendees')
-                    ->withTimestamps();
+            ->withTimestamps();
     }
-    
+
+    /**
+     * Órdenes de servicio asignadas a este usuario como responsable principal (Owner)
+     */
+    public function assignedServiceOrders()
+    {
+        return $this->hasMany(OrgServiceOrder::class, 'assigned_to');
+    }
+
+    /**
+     * Órdenes de servicio donde este usuario participa como seguidor/apoyo (Follower)
+     */
+    public function followingServiceOrders()
+    {
+        return $this->belongsToMany(
+            OrgServiceOrder::class,
+            'org_service_order_followers',
+            'user_id',
+            'org_service_order_id'
+        )->withTimestamps();
+    }
 }

@@ -26,6 +26,7 @@ class OrgService extends Model
         'default_commission_type',
         'default_commission_value',
         'is_active',
+        'default_assignee_id',
     ];
 
     protected $casts = [
@@ -75,4 +76,35 @@ class OrgService extends Model
     {
         return $this->hasMany(OrgSale::class, 'org_service_id');
     }
+
+    /**
+     * 👇 Relación: El usuario encargado por defecto de este servicio
+     */
+    public function defaultAssignee()
+    {
+        return $this->belongsTo(User::class, 'default_assignee_id');
+    }
+
+    /**
+     * 👇 Relación: Los usuarios seguidores por defecto de este servicio (Muchos a Muchos)
+     */
+    public function defaultFollowers()
+    {
+        return $this->belongsToMany(
+            User::class, 
+            'org_service_default_followers', // Nombre exacto de tu nueva tabla pivote
+            'org_service_id',                // Foreign key en la pivote del modelo actual
+            'user_id'                        // Foreign key en la pivote del modelo relacionado
+        )->withTimestamps();
+    }
+    
+
+    /**
+     * Órdenes activas ejecutando este servicio
+     */
+    public function serviceOrders()
+    {
+        return $this->hasMany(OrgServiceOrder::class, 'org_service_id');
+    }
+    
 }

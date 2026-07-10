@@ -46,4 +46,12 @@ class OrgCustomer extends Model
     {
         return $this->hasMany(OrgSale::class, 'org_customer_id');
     }
+
+    /**
+     * Trámites y órdenes de servicio del cliente
+     */
+    public function serviceOrders()
+    {
+        return $this->hasMany(OrgServiceOrder::class, 'org_customer_id');
+    }
 }

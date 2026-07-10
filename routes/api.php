@@ -32,8 +32,8 @@ use App\Http\Controllers\Api\Partner\PartnerSaleController;
 use App\Http\Controllers\Api\SalesController;
 use App\Http\Controllers\Api\Store\PublicOrgServiceController;
 use App\Http\Controllers\Api\Store\StripeCheckoutController;
-use App\Http\Controllers\Api\Yelpro\YelproFolderController;
 use App\Http\Controllers\Api\Yelpro\OrgEventYelProController;
+use App\Http\Controllers\Api\Yelpro\YelproFolderController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -283,7 +283,7 @@ Route::prefix('v1')->group(function () {
                     Route::put('/folders/{folder}', [FolderController::class, 'update']);
                     Route::delete('/folders/{folder}', [FolderController::class, 'destroy']);
                     Route::post('/folders/{folderUid}/compartir', [FolderController::class, 'compartir']);
-                   
+
                     Route::post('/documents', [DocumentController::class, 'store']);
                     Route::delete('/documents/{documentUid}', [DocumentController::class, 'destroy']);
                     Route::post('/documents/presign', [DocumentController::class, 'presign']);
@@ -359,6 +359,19 @@ Route::prefix('v1')->group(function () {
             Route::get('/partner-program/status', [\App\Http\Controllers\Api\Partner\PartnerOptInController::class, 'status']);
             Route::post('/partner-program/join', [\App\Http\Controllers\Api\Partner\PartnerOptInController::class, 'join']);
             Route::post('partner/sales/export-pdf', [PartnerSaleController::class, 'exportPdf']);
+
+            // ==========================================
+            // 🛠️ ÓRDENES DE SERVICIO (OPERACIONES / KANBAN)
+            // ==========================================
+            Route::group([], function () {
+                // Ver y listar órdenes
+                Route::get('/service-orders', [\App\Http\Controllers\Api\OrgServiceOrderController::class, 'index']);
+                Route::get('/service-orders/{orderUid}', [\App\Http\Controllers\Api\OrgServiceOrderController::class, 'show']);
+
+                // Gestionar (Actualizar pipeline, asignar equipo, etc.)
+                Route::put('/service-orders/{orderUid}', [\App\Http\Controllers\Api\OrgServiceOrderController::class, 'update']);
+                Route::delete('/service-orders/{orderUid}', [\App\Http\Controllers\Api\OrgServiceOrderController::class, 'destroy']);
+            });
 
         });
 

@@ -27,7 +27,8 @@ class OrgServiceController extends Controller
             $this->authorizeWorkspace($company);
             $this->authorize('view_services');
 
-            $services = OrgService::where('org_company_id', $company->id)
+            $services = OrgService::with(['defaultAssignee', 'defaultFollowers'])
+                ->where('org_company_id', $company->id)
                 ->orderBy('name', 'asc')
                 ->get();
 
@@ -64,6 +65,11 @@ class OrgServiceController extends Controller
                 'default_commission_value' => 'required|numeric|min:0',
                 'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
                 'is_active' => 'boolean',
+
+                'default_assignee_id' => 'nullable|integer|exists:users,id',
+                'default_follower_ids' => 'nullable|array',
+                'default_follower_ids.*' => 'integer|exists:users,id',
+
             ]);
 
             // Validar unicidad del Price ID de Stripe dentro de la misma empresa para evitar duplicados
@@ -112,7 +118,14 @@ class OrgServiceController extends Controller
                 'default_commission_type' => $request->default_commission_type,
                 'default_commission_value' => $request->default_commission_value,
                 'is_active' => $request->is_active ?? true,
+                'default_assignee_id' => $request->default_assignee_id,
             ]);
+
+            if ($request->has('default_follower_ids')) {
+                $service->defaultFollowers()->sync($request->default_follower_ids);
+            }
+
+            $service->load(['defaultAssignee', 'defaultFollowers']);
 
             return response()->json([
                 'message' => 'Servicio creado correctamente.',
@@ -154,6 +167,11 @@ class OrgServiceController extends Controller
                 'default_commission_value' => 'sometimes|required|numeric|min:0',
                 'is_active' => 'boolean',
                 'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+
+                'default_assignee_id' => 'nullable|integer|exists:users,id',
+                'default_follower_ids' => 'nullable|array',
+                'default_follower_ids.*' => 'integer|exists:users,id',
+
             ]);
 
             if ($request->has('stripe_price_id') && $request->stripe_price_id !== $service->stripe_price_id) {
@@ -165,6 +183,8 @@ class OrgServiceController extends Controller
                     return response()->json(['message' => 'Este Stripe Price ID ya está registrado en otro servicio.'], 422);
                 }
             }
+
+            $updateData = $request->except(['default_follower_ids']);
 
             $updateData = $request->all();
 
@@ -194,8 +214,17 @@ class OrgServiceController extends Controller
                 $updateData['cover_image'] = $file->storeAs('services_covers', $fileName, 'r2_public');
             }
 
+            
             $service->update($updateData);
 
+            // Sincronizar los followers (agrega nuevos, quita los removidos)
+            if ($request->has('default_follower_ids')) {
+                // Si mandan un array vacío [], sync borrará todos los registros en la tabla pivote, lo cual es correcto
+                $service->defaultFollowers()->sync($request->default_follower_ids);
+            }
+
+            $service->load(['defaultAssignee', 'defaultFollowers']);
+            
             return response()->json([
                 'message' => 'Servicio actualizado correctamente.',
                 'data' => $service,

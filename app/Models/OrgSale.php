@@ -78,4 +78,12 @@ class OrgSale extends Model
         return $this->belongsTo(OrgCustomer::class, 'org_customer_id');
     }
     
+    /**
+     * Orden de servicio generada por esta venta
+     */
+    public function serviceOrder()
+    {
+        return $this->hasOne(OrgServiceOrder::class, 'org_sale_id');
+    }
+    
 }

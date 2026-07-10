@@ -76,4 +76,14 @@ class OrgCompany extends Model
     {
         return $this->hasMany(OrgEvent::class);
     }
+
+
+   /**
+     * Órdenes de servicio procesadas en la compañía
+     */
+    public function serviceOrders()
+    {
+        return $this->hasMany(OrgServiceOrder::class, 'org_company_id');
+    }
+
 }
