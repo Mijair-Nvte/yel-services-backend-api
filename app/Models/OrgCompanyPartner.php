@@ -14,13 +14,15 @@ class OrgCompanyPartner extends Model
         'org_company_id',
         'user_id',
         'referral_code',
+        'tax_form_type',
+        'tax_form_data',
         'custom_commission_type',
         'custom_commission_value',
-        'is_active',
+        'status',
     ];
 
     protected $casts = [
-        'is_active' => 'boolean',
+        'tax_form_data' => 'array',
         'custom_commission_value' => 'decimal:2',
     ];
 

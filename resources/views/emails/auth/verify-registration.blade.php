@@ -12,7 +12,7 @@
 </head>
 <body>
     <div class="container">
-        <div class="logo">YEL INVESTOR</div>
+        <div class="logo">YEL GROUP, LLC.</div>
         <p>Hola <strong>{{ $name }}</strong>,</p>
         <p>Para completar tu registro y verificar tu dirección de correo electrónico, por favor ingresa el siguiente código de seguridad en la pantalla de verificación:</p>
         
@@ -23,7 +23,7 @@
         <p>Este código <strong>expirará en 15 minutos</strong> por motivos de seguridad. Si tú no iniciaste este registro, puedes ignorar este correo de forma segura.</p>
         
         <div class="footer">
-            &copy; {{ date('Y') }} YEL INVESTOR. Todos los derechos reservados.
+            &copy; {{ date('Y') }} YEL GROUP, LLC. Todos los derechos reservados.
         </div>
     </div>
 </body>

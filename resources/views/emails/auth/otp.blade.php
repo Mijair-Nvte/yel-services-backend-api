@@ -12,7 +12,7 @@
 </head>
 <body>
     <div class="container">
-        <div class="logo">YEL INVESTOR</div>
+        <div class="logo">YEL GROUP, LLC.</div>
         <p>Hola <strong>{{ $userName }}</strong>,</p>
         <p>Para completar tu inicio de sesión, por favor ingresa el siguiente código de verificación en el dashboard:</p>
         
@@ -23,7 +23,7 @@
         <p>Este código <strong>expirará en 10 minutos</strong>. Si no intentaste iniciar sesión, puedes ignorar este correo de forma segura.</p>
         
         <div class="footer">
-            &copy; {{ date('Y') }} YEL. Todos los derechos reservados.
+            &copy; {{ date('Y') }} YEL GROUP, LLC. Todos los derechos reservados.
         </div>
     </div>
 </body>

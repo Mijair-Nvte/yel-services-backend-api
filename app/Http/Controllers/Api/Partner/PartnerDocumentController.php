@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Partner;
 
 use App\Http\Controllers\Controller;
+use App\Mail\ShareDocumentMail;
 use App\Models\Document;
 use App\Models\Folder;
 use App\Models\OrgCompany;
@@ -12,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -29,7 +31,7 @@ class PartnerDocumentController extends Controller
             'file_name' => 'required|string',
             'mime_type' => 'required|string',
             'folder_uid' => 'nullable|string', // Nullable en el request, pero internamente lo resolveremos
-            'module' => 'nullable|string', 
+            'module' => 'nullable|string',
         ]);
 
         // 🌟 Lógica de "Mi Unidad": Resolvemos la carpeta destino
@@ -104,7 +106,7 @@ class PartnerDocumentController extends Controller
             'file_size' => 'required|integer',
             'key' => 'required|string',
             // 🚀 Cambiado a required, porque presign() siempre devolverá el ID de "Mi Unidad" como mínimo
-            'folder_id' => 'required|integer|exists:folders,id', 
+            'folder_id' => 'required|integer|exists:folders,id',
         ]);
 
         // 🔒 Seguridad extra
@@ -152,7 +154,7 @@ class PartnerDocumentController extends Controller
             // Retornamos el error técnico para que sepas qué columna está fallando en MySQL
             return response()->json([
                 'message' => 'No se pudo guardar en la base de datos. El archivo fue eliminado de la nube.',
-                'error_detail' => $e->getMessage() 
+                'error_detail' => $e->getMessage(),
             ], 500);
         }
     }
@@ -239,5 +241,42 @@ class PartnerDocumentController extends Controller
 
             return response()->json(['message' => 'No se pudo procesar la eliminación.'], 500);
         }
+    }
+
+  /**
+     * ✉️ Enviar un documento por correo electrónico al cliente final (Puesto en cola)
+     */
+    public function sendViaEmail(Request $request, string $companyUid, string $documentUid)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email',
+            'message' => 'nullable|string|max:1000',
+        ]);
+
+        $user = Auth::user();
+
+        // 🔒 Buscamos el documento únicamente por su UID global
+        // Se elimina la restricción de 'uploaded_by' ya que los archivos son provistos por administración
+        $document = Document::where('uid', $documentUid)->firstOrFail();
+
+        $senderName = $user->name ?? 'Un representante';
+
+        // Estructuramos la URL pública que usará el cliente final para visualizar el archivo
+        $documentUrl = config('app.url') . "/api/v1/documents/{$documentUid}/view";
+
+        // Despachamos el correo a la cola de mensajería (Resend / Cloudflare)
+        Mail::to($validated['email'])->send(
+            new ShareDocumentMail(
+                $document->title ?? $document->file_name,
+                $documentUrl,
+                $senderName,
+                $validated['message']
+            )
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'El documento ha sido encolado exitosamente para su envío.',
+        ]);
     }
 }

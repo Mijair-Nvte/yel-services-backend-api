@@ -354,6 +354,21 @@ Route::prefix('v1')->group(function () {
                 Route::post('/loans/{loanUid}/sections', [LoanApplicationController::class, 'saveSection']);
             });
 
+            // ==========================================
+            // 🤝 ADMINISTRACIÓN DE PARTNERS (Admin Module)
+            // ==========================================
+            Route::group([], function () {
+                // Listar todas las solicitudes (puedes filtrar por ?status=pending)
+                Route::get('/partners', [\App\Http\Controllers\Api\OrgPartnerAdminController::class, 'index']);
+
+                // Ver detalle de una solicitud específica
+                Route::get('/partners/{partnerId}', [\App\Http\Controllers\Api\OrgPartnerAdminController::class, 'show']);
+
+                // Aprobar o rechazar
+                Route::post('/partners/{partnerId}/approve', [\App\Http\Controllers\Api\OrgPartnerAdminController::class, 'approve']);
+                Route::post('/partners/{partnerId}/reject', [\App\Http\Controllers\Api\OrgPartnerAdminController::class, 'reject']);
+            });
+
             // 🤝 PARTNERS (Opt-in Program) - NUEVA RUTA
 
             Route::get('/partner-program/status', [\App\Http\Controllers\Api\Partner\PartnerOptInController::class, 'status']);
@@ -437,6 +452,9 @@ Route::prefix('v1')->group(function () {
                 Route::post('/documents/confirm', [\App\Http\Controllers\Api\Partner\PartnerDocumentController::class, 'confirm']);
                 Route::delete('/documents/{documentUid}', [\App\Http\Controllers\Api\Partner\PartnerDocumentController::class, 'destroy']);
 
+                Route::post('/documents/{documentUid}/send-email', [\App\Http\Controllers\Api\Partner\PartnerDocumentController::class, 'sendViaEmail'])
+                    ->middleware('throttle:5,1');
+
                 // 👁️ Visualizar/Descargar (Firma URL de lectura temporal de R2)
                 Route::get('/documents/{documentUid}/view', [\App\Http\Controllers\Api\Partner\PartnerDocumentController::class, 'view']);
                 Route::get('/documents/{documentUid}/download', [\App\Http\Controllers\Api\Partner\PartnerDocumentController::class, 'download']);
@@ -468,6 +486,9 @@ Route::prefix('v1')->group(function () {
 
                 // 👇 Ruta para el catálogo de servicios del Partner
                 Route::get('/partner-services', [\App\Http\Controllers\Api\Partner\PartnerServiceController::class, 'index']);
+
+                Route::post('/partner-services/{serviceUid}/send-email', [\App\Http\Controllers\Api\Partner\PartnerServiceController::class, 'sendViaEmail'])
+                    ->middleware('throttle:5,1');
 
                 Route::prefix('loan-applications')->group(function () {
                     // 📋 Listar solicitudes

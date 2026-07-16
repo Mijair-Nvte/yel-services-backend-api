@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Nuevo aviso | YEL SERVICES</title>
+    <title>Nuevo aviso </title>
 </head>
 <body style="margin:0; padding:0; background-color:#f8fafc; font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
     <span style="display:none; visibility:hidden; color:transparent; height:0; width:0;">
@@ -107,7 +107,7 @@
                 <table width="100%" style="max-width:600px; margin-top:25px;">
                     <tr>
                         <td align="center" style="font-size:12px; color:#cbd5e1;">
-                            © {{ date('Y') }} YEL SERVICES LLC. Todos los derechos reservados.
+                            © {{ date('Y') }} YEL GROUP, LLC. Todos los derechos reservados.
                         </td>
                     </tr>
                 </table>

@@ -12,7 +12,7 @@
 </head>
 <body>
     <div class="container">
-        <div class="logo">YEL GROUP</div>
+        <div class="logo">YEL GROUP, LLC.</div>
         <p>Hola <strong>{{ $userName }}</strong>,</p>
         <p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta. Por favor, ingresa el siguiente código de seguridad en la aplicación para continuar:</p>
         
@@ -23,7 +23,7 @@
         <p>Este código <strong>expirará en 15 minutos</strong> por motivos de seguridad. Si tú no solicitaste un restablecimiento de contraseña, puedes ignorar este correo de forma segura. Tu cuenta seguirá protegida.</p>
         
         <div class="footer">
-            &copy; {{ date('Y') }} YEL Group. Todos los derechos reservados.
+            &copy; {{ date('Y') }} YEL GROUP, LLC. Todos los derechos reservados.
         </div>
     </div>
 </body>

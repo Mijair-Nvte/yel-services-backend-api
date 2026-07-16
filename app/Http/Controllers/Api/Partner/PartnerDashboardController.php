@@ -23,7 +23,7 @@ class PartnerDashboardController extends Controller
             // 1. Obtener todos los códigos de referido asociados a este usuario
             $referralCodes = DB::table('org_company_partners')
                 ->where('user_id', $user->id)
-                ->where('is_active', 1)
+
                 ->pluck('referral_code')
                 ->toArray();
 

@@ -15,7 +15,7 @@
     <div class="container">
         <h2>Nuevo inicio de sesión en tu cuenta</h2>
         <p>Hola <strong>{{ $userName }}</strong>,</p>
-        <p>Te informamos que hemos detectado un nuevo acceso a tu cuenta en YEL INVESTOR.</p>
+        <p>Te informamos que hemos detectado un nuevo acceso a tu cuenta..</p>
         
         <div class="details-box">
             <p><strong>Fecha y hora:</strong> {{ $time }} (Hora Centro)</p>
@@ -28,7 +28,7 @@
         </p>
         
         <div class="footer">
-            &copy; {{ date('Y') }} YEL. Todos los derechos reservados.
+            &copy; {{ date('Y') }} YEL GROUP, LLC. Todos los derechos reservados.
         </div>
     </div>
 </body>
