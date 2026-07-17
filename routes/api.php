@@ -471,6 +471,17 @@ Route::prefix('v1')->group(function () {
                 });
 
                 // ==========================================
+                // 🏦 DATOS BANCARIOS (Portal del Partner)
+                // ==========================================
+                Route::prefix('bank-accounts')->group(function () {
+                    Route::get('/', [\App\Http\Controllers\Api\Partner\PartnerBankAccountController::class, 'index']);
+                    Route::post('/', [\App\Http\Controllers\Api\Partner\PartnerBankAccountController::class, 'store']);
+                    Route::get('/{accountUid}', [\App\Http\Controllers\Api\Partner\PartnerBankAccountController::class, 'show']);
+                    Route::put('/{accountUid}', [\App\Http\Controllers\Api\Partner\PartnerBankAccountController::class, 'update']);
+                    Route::delete('/{accountUid}', [\App\Http\Controllers\Api\Partner\PartnerBankAccountController::class, 'destroy']);
+                });
+
+                // ==========================================
                 // 🛡️ YEL INSURANCE (Portal del Cliente/Partner)
                 // ==========================================
                 Route::prefix('insurance-applications')->group(function () {

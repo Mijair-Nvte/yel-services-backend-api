@@ -77,8 +77,7 @@ class OrgCompany extends Model
         return $this->hasMany(OrgEvent::class);
     }
 
-
-   /**
+    /**
      * Órdenes de servicio procesadas en la compañía
      */
     public function serviceOrders()
@@ -86,4 +85,11 @@ class OrgCompany extends Model
         return $this->hasMany(OrgServiceOrder::class, 'org_company_id');
     }
 
+    /**
+     * Relación: Una empresa tiene muchas cuentas bancarias
+     */
+    public function bankAccounts()
+    {
+        return $this->hasMany(OrgBankAccount::class, 'org_company_id');
+    }
 }
