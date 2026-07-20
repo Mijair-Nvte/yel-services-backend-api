@@ -147,4 +147,59 @@ class User extends Authenticatable implements MustVerifyEmail
             'org_service_order_id'
         )->withTimestamps();
     }
+
+    // funcion para la parte de nivel en ventas en focado en yel pro
+
+    // 1. Relación para traer las ventas que ha hecho este usuario (como vendedor)
+    public function sellerSales()
+    {
+        // Traemos las ventas donde este usuario es el "seller_id"
+        return $this->hasMany(OrgSale::class, 'seller_id');
+    }
+
+    // 2. Accessor para calcular el nivel actual en Yel Pro dinámicamente
+    // Accessor ultra rápido para obtener el nivel actual en el frontend
+    // Accessor ultra rápido y auto-reparable para obtener el nivel actual
+    public function getCurrentPartnerTierAttribute()
+    {
+        // 1. Obtenemos el perfil del partner (aprovechando el Eager Loading del controlador)
+        $profile = $this->partnerProfile;
+
+        // Si el usuario no tiene registro de vendedor, retornamos null
+        if (! $profile) {
+            return null;
+        }
+
+        // 2. Lógica de Auto-Sanación: Si el partner existe pero no tiene nivel asignado
+        if (empty($profile->org_partner_tier_id)) {
+            // Buscamos el nivel inicial (el que empieza en 0 o el más bajo)
+            $defaultTier = \App\Models\OrgPartnerTier::where('is_active', true)
+                ->orderBy('min_sales_volume', 'asc')
+                ->first();
+
+            if ($defaultTier) {
+                // Le asignamos el nivel en la base de datos para futuras consultas
+                $profile->org_partner_tier_id = $defaultTier->id;
+                $profile->save();
+
+                // Como acabamos de asignarlo, lo devolvemos directamente
+                return $defaultTier;
+            }
+        }
+
+        // 3. Si ya tiene nivel asignado, simplemente lo retornamos
+        return $profile->tier;
+    }
+
+    // Relación directa al perfil de vendedor/partner del usuario
+    public function partnerProfile()
+    {
+        return $this->hasOne(OrgCompanyPartner::class, 'user_id');
+    }
+
+    // Accessor para ver el volumen total histórico de ventas
+    public function getLifetimeSalesVolumeAttribute()
+    {
+        return $this->partnerProfile ? $this->partnerProfile->lifetime_sales_volume : 0.00;
+    }
 }

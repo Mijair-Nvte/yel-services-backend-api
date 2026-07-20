@@ -41,7 +41,7 @@ class PublicOrgServiceController extends Controller
 
         $partnerExists = \App\Models\OrgCompanyPartner::where('org_company_id', $company->id)
             ->where('referral_code', $code)
-            ->where('is_active', true)
+           ->where('status', 'approved')
             ->exists();
 
         return response()->json([

@@ -19,11 +19,14 @@ class OrgCompanyPartner extends Model
         'custom_commission_type',
         'custom_commission_value',
         'status',
+        'org_partner_tier_id',
+        'lifetime_sales_volume',
     ];
 
     protected $casts = [
         'tax_form_data' => 'array',
         'custom_commission_value' => 'decimal:2',
+        'lifetime_sales_volume' => 'decimal:2',
     ];
 
     /**
@@ -41,4 +44,13 @@ class OrgCompanyPartner extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    /**
+     * Relación: Un Partner pertenece a un Nivel de Ventas (Tier)
+     */
+    public function tier()
+    {
+        return $this->belongsTo(OrgPartnerTier::class, 'org_partner_tier_id');
+    }
+    
 }
