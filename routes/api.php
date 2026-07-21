@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\OrgCompanyLinkController;
 use App\Http\Controllers\Api\OrgCompanyNoticeController;
 use App\Http\Controllers\Api\OrgCompanyUserController;
 use App\Http\Controllers\Api\OrgEventController;
+use App\Http\Controllers\Api\ChatbotController;
 use App\Http\Controllers\Api\OrgInsuranceApplicationController;
 use App\Http\Controllers\Api\OrgPaymentLinkMappingController;
 use App\Http\Controllers\Api\OrgPositionController;
@@ -34,6 +35,7 @@ use App\Http\Controllers\Api\Store\PublicOrgServiceController;
 use App\Http\Controllers\Api\Store\StripeCheckoutController;
 use App\Http\Controllers\Api\Yelpro\OrgEventYelProController;
 use App\Http\Controllers\Api\Yelpro\YelproFolderController;
+use App\Http\Controllers\Api\Yelpro\YelproFeedbackController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -525,6 +527,8 @@ Route::prefix('v1')->group(function () {
 
         Route::prefix('yelpro')->group(function () {
 
+            Route::post('/chatbot/ask', [ChatbotController::class, 'ask']);
+
             // Todas las rutas de YelPro requerirán el UID de la compañía
             Route::prefix('companies/{companyUid}')->group(function () {
 
@@ -537,6 +541,11 @@ Route::prefix('v1')->group(function () {
 
                 Route::post('/events/{eventUid}/attendance', [OrgEventYelProController::class, 'toggleAttendance']);
 
+                // 👇 AQUÍ AGREGAS LAS RUTAS DE FEEDBACK 👇
+                Route::post('/feedbacks', [\App\Http\Controllers\Api\Yelpro\YelproFeedbackController::class, 'store']);
+                // (Opcional) Si quieres que el usuario vea sus reportes anteriores:
+                Route::get('/feedbacks', [\App\Http\Controllers\Api\Yelpro\YelproFeedbackController::class, 'index']);
+                
             });
 
         });

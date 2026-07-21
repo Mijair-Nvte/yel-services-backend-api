@@ -10,6 +10,7 @@ class OrgEvent extends Model
 {
     use HasFactory;
 
+    
     protected $fillable = [
         'uid',
         'org_company_id',

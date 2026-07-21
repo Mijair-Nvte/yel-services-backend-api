@@ -12,9 +12,17 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail; 
 use Illuminate\Support\Facades\Cache; 
 use App\Mail\VerifyRegistrationOtpMail; 
-
+use App\Services\Partner\PartnerService;
 class AffiliateRegisterController extends Controller
 {
+
+
+    public function __construct(PartnerService $partnerService)
+    {
+        $this->partnerService = $partnerService;
+    }
+
+
     public function __invoke(Request $request)
     {
         $validated = $request->validate([
@@ -22,7 +30,21 @@ class AffiliateRegisterController extends Controller
             'email' => ['required', 'email', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'workspace_uid' => ['required', 'exists:org_companies,uid'],
+            'invite_code' => ['required', 'string'],
         ]);
+
+        // ==========================================
+        // 2. VALIDACIÓN HARDCODEADA DEL CÓDIGO
+        // ==========================================
+        $secretCode = 'YELPRO26'; 
+
+        // Validamos convirtiendo a mayúsculas para evitar errores de tipeo del usuario
+        if (strtoupper(trim($validated['invite_code'])) !== $secretCode) {
+            return response()->json([
+                'message' => 'El código de invitación es inválido o ha expirado.'
+            ], 400); // 400 Bad Request
+        }
+
 
         try {
             return DB::transaction(function () use ($validated) {
@@ -44,6 +66,8 @@ class AffiliateRegisterController extends Controller
                 // 3. Asignar rol (Ajustado a 'partner' según tu esquema de DB)
                 setPermissionsTeamId($company->id);
                 $user->assignRole('partner');
+
+              $this->partnerService->joinProgram($user, $company);
 
                 // 4. Generar OTP de 6 dígitos
                 $otp = sprintf("%06d", mt_rand(1, 999999));

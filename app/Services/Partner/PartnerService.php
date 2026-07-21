@@ -12,39 +12,53 @@ use Illuminate\Support\Str;
 class PartnerService
 {
     /**
-     * Inscribe a un usuario en el programa de Partners de una empresa (Estado Pendiente).
+     * Inscribe a un usuario en el programa de Partners (Auto-Aprobado).
+     * Si ya existe, verifica que esté aprobado y tenga código generado (Read-Repair).
      */
-    public function joinProgram(User $user, OrgCompany $company, array $taxFormData): OrgCompanyPartner
+    public function joinProgram(User $user, OrgCompany $company): OrgCompanyPartner
     {
-        // 1. Validar que no sea partner previamente o tenga solicitud en curso
-        $exists = OrgCompanyPartner::where('org_company_id', $company->id)
+        $partner = OrgCompanyPartner::where('org_company_id', $company->id)
             ->where('user_id', $user->id)
-            ->exists();
+            ->first();
 
-        if ($exists) {
-            throw new Exception('Ya tienes una solicitud en proceso o estás inscrito como partner en esta compañía.');
+        // 1. Si NO existe, lo creamos directamente aprobado y con código
+        if (! $partner) {
+            return DB::transaction(function () use ($user, $company) {
+                $newPartner = OrgCompanyPartner::create([
+                    'org_company_id' => $company->id,
+                    'user_id' => $user->id,
+                    'referral_code' => $this->generateUniqueReferralCode($user),
+                    'status' => 'approved',
+                    'tax_form_type' => null,
+                    'tax_form_data' => [], // Delegado a GoHighLevel
+                ]);
+
+                // Asegurar que tenga el rol
+                setPermissionsTeamId($company->id);
+                $user->assignRole('partner');
+
+                return $newPartner;
+            });
         }
 
-        // 2. Ejecutar todo en una transacción de base de datos
-        return DB::transaction(function () use ($user, $company, $taxFormData) {
+        // 2. Si YA EXISTE, nos aseguramos de que no esté atascado en "pending" o sin código
+        $needsUpdate = false;
 
-            // A. Crear el registro en estatus pendiente, sin código de referido, e inyectando el JSON
-            $partner = OrgCompanyPartner::create([
-                'org_company_id' => $company->id,
-                'user_id'        => $user->id,
-                'referral_code'  => null,
-                'status'         => 'pending',
-                'tax_form_type'  => $taxFormData['tax_form_type'],
-                'tax_form_data'  => $taxFormData, // Eloquent lo convierte a JSON por el $casts en el modelo
-            ]);
+        if ($partner->status === 'pending') {
+            $partner->status = 'approved';
+            $needsUpdate = true;
+        }
 
-            // B. Asignar el rol usando Spatie Teams (multi-tenant)
-            // Se le asigna el rol para que pueda entrar a la vista, pero el frontend leerá el estatus "pending"
-            setPermissionsTeamId($company->id);
-            $user->assignRole('partner');
+        if (empty($partner->referral_code)) {
+            $partner->referral_code = $this->generateUniqueReferralCode($user);
+            $needsUpdate = true;
+        }
 
-            return $partner;
-        });
+        if ($needsUpdate) {
+            $partner->save();
+        }
+
+        return $partner;
     }
 
     /**
@@ -57,7 +71,7 @@ class PartnerService
         }
 
         $partner->update([
-            'status'        => 'approved',
+            'status' => 'approved',
             'referral_code' => $this->generateUniqueReferralCode($partner->user),
         ]);
 
