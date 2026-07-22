@@ -26,7 +26,7 @@ class SaleProcessingService
         $metadata = $session['metadata'] ?? [];
         $companyId = $metadata['company_id'] ?? null;
         $serviceId = $metadata['service_id'] ?? null;
-        $serviceUid  = $metadata['service_uid'] ?? null;
+        $serviceUid = $metadata['service_uid'] ?? null;
         $totalPaid = $session['amount_total'] / 100;
         $serviceName = $metadata['service_name'] ?? null;
         $stripeSessionId = $session['id'] ?? null;
@@ -217,6 +217,11 @@ class SaleProcessingService
         }
 
         if ($customer) {
+            // Actualizar el teléfono si antes no lo tenía registrado
+            if (empty($customer->phone) && ! empty($phone)) {
+                $customer->update(['phone' => $phone]);
+            }
+
             return $customer->id;
         }
 
@@ -299,8 +304,8 @@ class SaleProcessingService
 
             // Campos personalizados para enrutar y personalizar en GHL
             'service_purchased' => $sale->product_name,
-            'service_id' => $service->id, 
-            'service_uid'      => $service->uid,
+            'service_id' => $service->id,
+            'service_uid' => $service->uid,
             'service_owner' => $ownerName,
             'service_follower' => $followerName,
 

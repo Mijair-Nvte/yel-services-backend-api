@@ -43,6 +43,9 @@ class StripeCheckoutController extends Controller
                 'cancel_url'  => config('app.frontend_url') . "/store/{$company->uid}?ref=" . ($request->referral_code ?? ''),
                 'metadata'    => $metadata,
                 'payment_intent_data' => [ 'metadata' => $metadata ],
+                'phone_number_collection' => [
+                    'enabled' => true,
+                ],
             ]);
 
             return response()->json([
