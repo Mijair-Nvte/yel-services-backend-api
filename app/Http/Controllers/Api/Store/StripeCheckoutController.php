@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api\Store;
 
 use App\Http\Controllers\Controller;
-use App\Models\OrgService;
 use App\Models\OrgCompany;
+use App\Models\OrgService;
 use Illuminate\Http\Request;
 use Laravel\Cashier\Checkout;
 
@@ -13,7 +13,7 @@ class StripeCheckoutController extends Controller
     public function createSession(string $uid, Request $request)
     {
         $request->validate([
-            'service_uid'   => 'required|exists:org_services,uid',
+            'service_uid' => 'required|exists:org_services,uid',
             'referral_code' => 'nullable|string',
         ]);
 
@@ -25,24 +25,26 @@ class StripeCheckoutController extends Controller
             ->where('org_company_id', $company->id)
             ->firstOrFail();
 
-        $items = [ $service->stripe_price_id => 1 ];
+        $items = [$service->stripe_price_id => 1];
 
         // 3. Metadata robusta para el Webhook
         $metadata = [
-            'service_uid'   => $service->uid,
-            'service_id'    => $service->id,
-            'service_name'  => $service->name,
+            'service_uid' => $service->uid,
+            'service_id' => $service->id,
+            'service_name' => $service->name,
             'referral_code' => $request->referral_code,
-            'company_id'    => $company->id, // ID interno para org_sales
-            'company_uid'   => $company->uid,
+            'company_id' => $company->id, // ID interno para org_sales
+            'company_uid' => $company->uid,
         ];
+
+        $yelProUrl = config('app.yelpro_url');
 
         try {
             $checkout = Checkout::guest()->create($items, [
-                'success_url' => config('app.frontend_url') . '/payment/success?session_id={CHECKOUT_SESSION_ID}',
-                'cancel_url'  => config('app.frontend_url') . "/store/{$company->uid}?ref=" . ($request->referral_code ?? ''),
-                'metadata'    => $metadata,
-                'payment_intent_data' => [ 'metadata' => $metadata ],
+                'success_url' => $yelProUrl.'/payment/success?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => $yelProUrl."/store/{$company->uid}?ref=".($request->referral_code ?? ''),
+                'metadata' => $metadata,
+                'payment_intent_data' => ['metadata' => $metadata],
                 'phone_number_collection' => [
                     'enabled' => true,
                 ],
@@ -50,13 +52,13 @@ class StripeCheckoutController extends Controller
 
             return response()->json([
                 'success' => true,
-                'url'     => $checkout->url
+                'url' => $checkout->url,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ], 500);
         }
     }

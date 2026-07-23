@@ -125,4 +125,18 @@ return [
 
     'frontend_url' => env('FRONTEND_URL', 'https://www.yelinvestor.com'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Frontend URLs para Multi-tenant
+    |--------------------------------------------------------------------------
+    |
+    | Aquí definimos las URLs de los distintos portales que consumen esta API.
+    |
+    */
+    'frontend_url' => env('FRONTEND_URL', 'https://www.yelinvestor.com'), // Puedes dejar esta como genérica si la usas en otro lado
+
+    'yelpro_url' => env('YELPRO_URL', 'https://www.yelpro.vip'),
+
+    'yelinvestor_url' => env('YELINVESTOR_URL', 'https://www.yelinvestor.com'),
+
 ];
