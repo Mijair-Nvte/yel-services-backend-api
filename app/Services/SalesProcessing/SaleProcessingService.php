@@ -212,19 +212,17 @@ class SaleProcessingService
             $customer = OrgCustomer::where('org_company_id', $companyId)->where('email', $email)->first();
         }
 
-        if (! $customer && ! empty($phone)) {
-            $customer = OrgCustomer::where('org_company_id', $companyId)->where('phone', $phone)->first();
-        }
-
+        // 2. Si el cliente existe por correo, lo usamos.
         if ($customer) {
-            // Actualizar el teléfono si antes no lo tenía registrado
-            if (empty($customer->phone) && ! empty($phone)) {
+            // Opcional: Actualizamos el teléfono en la base de datos si el cliente introdujo uno nuevo o diferente
+            if (! empty($phone) && $customer->phone !== $phone) {
                 $customer->update(['phone' => $phone]);
             }
 
             return $customer->id;
         }
 
+        // 3. Si NO existe el correo, creamos un nuevo usuario sin importar si el teléfono se repite
         $nameParts = explode(' ', trim($fullName), 2);
         $firstName = $nameParts[0] ?? 'Cliente';
         $lastName = $nameParts[1] ?? null;
@@ -261,7 +259,7 @@ class SaleProcessingService
             if ($sellerId) {
                 $sellerUser = User::find($sellerId);
                 if ($sellerUser) {
-                    Mail::to($sellerUser->email)->send(new InternalSaleNotificationMail($sale, $sellerUser->name, 'Afiliado'));
+                    Mail::to($sellerUser->email)->send(new InternalSaleNotificationMail($sale, $sellerUser->name, 'YEL PRO'));
                 }
             }
         } else {

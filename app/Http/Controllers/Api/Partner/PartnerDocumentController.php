@@ -262,7 +262,7 @@ class PartnerDocumentController extends Controller
         $senderName = $user->name ?? 'Un representante';
 
         // Estructuramos la URL pública que usará el cliente final para visualizar el archivo
-        $documentUrl = config('app.url') . "/api/v1/documents/{$documentUid}/view";
+        $documentUrl ="https://api.yel.services/api/v1/documents/{$documentUid}/view";
 
         // Despachamos el correo a la cola de mensajería (Resend / Cloudflare)
         Mail::to($validated['email'])->send(

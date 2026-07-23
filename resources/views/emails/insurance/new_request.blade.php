@@ -16,12 +16,9 @@
   <tr><td style="background:#0E1B29;padding:22px 36px">
     <table width="100%" cellpadding="0" cellspacing="0"><tr>
       <td>
-<img
-    src="https://api.yel.services/assets/img/logo-yel-investor-2.png"
-    alt="Yel Investor"
-    width="180"
-    style="display:block;">      </td>
-      <td align="right"><span style="font-size:.68rem;font-weight:600;color:rgba(255,255,255,.45);letter-spacing:.06em;text-transform:uppercase">🔔 Nuevo referido</span></td>
+        <p style="font-size:1.2rem;font-weight:700;color:#0E1B29;line-height:1.25;margin:0 0 10px;letter-spacing:-.01em">YEL PRO</p>
+   </td>
+      <td align="right"><span style="font-size:.68rem;font-weight:600;color:rgba(255,255,255,.45);letter-spacing:.06em;text-transform:uppercase">🔔 Nuevo Prospecto</span></td>
     </tr></table>
   </td></tr>
 
@@ -84,7 +81,8 @@
       </td></tr>
 
       <tr><td style="background:#F5F1EB;padding:16px 36px;border-top:1px solid #EAE4DB">
-        <p style="font-size:.7rem;color:#9B93A3;margin:0;text-align:center;font-weight:400">YEL GROUP, LLC. Soporte para Partners · support@yelinvestor.com</p>
+        <p style="font-size:.7rem;color:#9B93A3;margin:0;text-align:center;font-weight:400">YEL PRO · Notificaciones · soporte@yaestoylisto.com</p>
+
       </td></tr>
 
     </table>

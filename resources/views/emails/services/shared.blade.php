@@ -56,7 +56,9 @@
       </td></tr>
 
       <tr><td style="background:#F5F1EB;padding:16px 36px;border-top:1px solid #EAE4DB">
-        <p style="font-size:.7rem;color:#9B93A3;margin:0;text-align:center;font-weight:400">YEL Group LLC.</p>
+<p style="font-size:.7rem;color:#9B93A3;margin:0;text-align:center;font-weight:400">
+    YEL PRO · Recomendaciones y Servicios
+</p>
       </td></tr>
 
     </table>
