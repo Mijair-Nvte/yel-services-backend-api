@@ -13,14 +13,13 @@
     <tr><td align="center" style="padding:36px 16px">
     <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#FFFFFF;border-radius:10px;overflow:hidden">
 
-      <tr><td style="background:#0E1B29;padding:22px 36px">
+   <tr><td style="background:#0E1B29;padding:22px 36px">
         <table width="100%" cellpadding="0" cellspacing="0"><tr>
           <td>
-            <span style="font-size:1.2rem;font-weight:700;color:#FFFFFF;letter-spacing:.02em;">YEL Pro</span>
+            <img src="{{ url('assets/img/Yel_Pro_logo_cream.png') }}" alt="YEL PRO" width="120" style="display:block; max-width: 120px; height: auto;">
           </td>
           <td align="right">
-            <!-- Cambié el texto y el emoji a algo más enfocado en educación/recursos -->
-            <span style="font-size:.68rem;font-weight:600;color:#4F46E5;letter-spacing:.06em;text-transform:uppercase">📚 Recurso Informativo</span>
+            <span style="font-size:.68rem;font-weight:600;color:#EF4444;letter-spacing:.06em;text-transform:uppercase">📚 Recurso Informativo</span>
           </td>
         </tr></table>
       </td></tr>

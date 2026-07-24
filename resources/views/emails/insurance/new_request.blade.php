@@ -13,14 +13,16 @@
     <tr><td align="center" style="padding:36px 16px">
     <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#FFFFFF;border-radius:10px;overflow:hidden">
 
-  <tr><td style="background:#0E1B29;padding:22px 36px">
-    <table width="100%" cellpadding="0" cellspacing="0"><tr>
-      <td>
-        <p style="font-size:1.2rem;font-weight:700;color:#0E1B29;line-height:1.25;margin:0 0 10px;letter-spacing:-.01em">YEL PRO</p>
-   </td>
-      <td align="right"><span style="font-size:.68rem;font-weight:600;color:rgba(255,255,255,.45);letter-spacing:.06em;text-transform:uppercase">🔔 Nuevo Prospecto</span></td>
-    </tr></table>
-  </td></tr>
+<tr><td style="background:#0E1B29;padding:22px 36px">
+        <table width="100%" cellpadding="0" cellspacing="0"><tr>
+          <td>
+            <img src="{{ url('assets/img/Yel Pro_logo_cream.png') }}" alt="YEL PRO" width="120" style="display:block; max-width: 120px; height: auto;">
+          </td>
+          <td align="right">
+            <span style="font-size:.68rem;font-weight:600;color:#E83983;letter-spacing:.06em;text-transform:uppercase">🔔 Nuevo Prospecto</span>
+          </td>
+        </tr></table>
+      </td></tr>
 
       <tr><td style="padding:30px 36px 20px">
         <p style="font-size:1.2rem;font-weight:700;color:#0E1B29;line-height:1.25;margin:0 0 10px;letter-spacing:-.01em">Tienes una nueva solicitud.<br>Un cliente necesita cobertura.</p>

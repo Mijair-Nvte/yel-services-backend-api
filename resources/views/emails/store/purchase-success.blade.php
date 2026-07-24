@@ -13,10 +13,14 @@
     <tr><td align="center" style="padding:36px 16px">
     <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#FFFFFF;border-radius:10px;overflow:hidden">
 
-      <tr><td style="background:#0E1B29;padding:22px 36px">
+   <tr><td style="background:#0E1B29;padding:22px 36px">
         <table width="100%" cellpadding="0" cellspacing="0"><tr>
-         
-                <td align="right"><span style="font-size:.68rem;font-weight:600;color:rgba(255,255,255,.45);letter-spacing:.06em;text-transform:uppercase">YEL PRO</span></td>
+          <td>
+            <img src="{{ url('assets/img/Yel_Pro_logo_cream.png') }}" alt="YEL PRO" width="120" style="display:block; max-width: 120px; height: auto;">
+          </td>
+          <td align="right">
+            <span style="font-size:.68rem;font-weight:600;color:#22C55E;letter-spacing:.06em;text-transform:uppercase">✨ Venta Exitosa</span>
+          </td>
         </tr></table>
       </td></tr>
 
