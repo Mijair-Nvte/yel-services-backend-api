@@ -23,7 +23,7 @@ class OrgLoanApplicationController extends Controller
 
             // 🛡️ Seguridad Contextual
             $this->authorizeWorkspace($company);
-            $this->authorize('view_loans'); // Asegúrate de tener este permiso en Spatie
+            $this->authorize('view_loan'); // Asegúrate de tener este permiso en Spatie
 
             // Listar solicitudes ordenadas por las más recientes y cargando al cliente
             $applications = OrgLoanApplication::with('customer')
@@ -47,7 +47,7 @@ class OrgLoanApplicationController extends Controller
             $company = OrgCompany::where('uid', $uid)->firstOrFail();
 
             $this->authorizeWorkspace($company);
-            $this->authorize('view_loans');
+            $this->authorize('view_loan');
 
             $application = OrgLoanApplication::with('customer')
                 ->where('uid', $applicationUid)
@@ -70,7 +70,7 @@ class OrgLoanApplicationController extends Controller
             $company = OrgCompany::where('uid', $uid)->firstOrFail();
 
             $this->authorizeWorkspace($company);
-            $this->authorize('manage_loans'); // Permiso para administrar préstamos
+            $this->authorize('manage_loan'); // Permiso para administrar préstamos
 
             $application = OrgLoanApplication::where('uid', $applicationUid)
                 ->where('org_company_id', $company->id)
@@ -107,7 +107,7 @@ class OrgLoanApplicationController extends Controller
             $company = OrgCompany::where('uid', $uid)->firstOrFail();
 
             $this->authorizeWorkspace($company);
-            $this->authorize('manage_loans');
+            $this->authorize('manage_loan');
 
             $application = OrgLoanApplication::where('uid', $applicationUid)
                 ->where('org_company_id', $company->id)
