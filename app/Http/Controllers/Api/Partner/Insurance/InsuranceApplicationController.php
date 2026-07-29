@@ -7,41 +7,38 @@ use App\Http\Requests\Api\Partner\Insurance\StoreInsuranceApplicationRequest;
 use App\Mail\InsuranceRequestMail;
 use App\Models\OrgCompany;
 use App\Models\OrgInsuranceApplication;
+use App\Traits\HandlesCustomers; //  Importamos el Trait
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail; // Lo crearemos en el siguiente paso
+use Illuminate\Support\Facades\Mail;
 
 class InsuranceApplicationController extends Controller
 {
+    use HandlesCustomers; //  Usamos el Trait dentro del controlador
+
     /**
      * 📋 Listar el historial de solicitudes de seguro del cliente.
      */
     public function index(Request $request, string $companyUid)
     {
-
         try {
-
             $company = OrgCompany::where('uid', $companyUid)->firstOrFail();
 
-            $applications = OrgInsuranceApplication::where('org_company_id', $company->id)
-
+            // Agregamos with('customer') para traer la relación
+            $applications = OrgInsuranceApplication::with('customer')
+                ->where('org_company_id', $company->id)
                 ->where('user_id', $request->user()->id)
-
                 ->orderBy('created_at', 'desc')
-
                 ->get();
 
             return response()->json(['data' => $applications], 200);
 
         } catch (\Exception $e) {
-
             Log::error('Error al listar solicitudes de seguro: '.$e->getMessage());
 
             return response()->json(['message' => 'Error al listar las solicitudes de seguro.'], 500);
-
         }
-
     }
 
     /**
@@ -56,28 +53,36 @@ class InsuranceApplicationController extends Controller
             $user = $request->user();
 
             $data = $request->validated();
+
+            // 1. Utilizamos el trait para buscar o crear al cliente centralizado
+            $customerId = $this->findOrCreateCustomer(
+                $company->id,
+                $data['applicant_name'],
+                $data['applicant_email'],
+                $data['applicant_phone']
+            );
+
+            // 2. Agregamos las llaves foráneas y el cliente
             $data['org_company_id'] = $company->id;
             $data['user_id'] = $user->id;
+            $data['org_customer_id'] = $customerId; // Vinculamos el ID del cliente
             $data['status'] = 'pending';
 
             $application = OrgInsuranceApplication::create($data);
 
             DB::commit();
 
-            // ✉️ ENVÍO DE CORREO A DESTINATARIOS ESPECÍFICOS (EXCEPCIÓN TEMPORAL)
+            // ✉️ ENVÍO DE CORREO A DESTINATARIOS ESPECÍFICOS
             try {
-                // Definimos la lista de personas que deben recibir la notificación
                 $destinatarios = [
                     'mnavarrete@yaestoylisto.com',
                     'operaciones@yel.com',
-                    // 'kenneth@tuempresa.com', // Puedes agregar los correos exactos aquí
+                    // 'kenneth@tuempresa.com',
                 ];
 
-                // Laravel se encarga de enviar el correo a cada uno de la lista
                 Mail::to($destinatarios)->send(new InsuranceRequestMail($application, $user));
 
             } catch (\Exception $e) {
-                // Si falla el servidor de correo, se registra el error pero la app no se detiene
                 Log::error('Error al enviar email de nuevo prospecto de seguro: '.$e->getMessage(), [
                     'application_uid' => $application->uid,
                 ]);
@@ -101,28 +106,20 @@ class InsuranceApplicationController extends Controller
      */
     public function show(Request $request, string $companyUid, string $applicationUid)
     {
-
         try {
-
             $company = OrgCompany::where('uid', $companyUid)->firstOrFail();
 
-            // Verificamos que pertenezca a la empresa y al usuario actual
-
-            $application = OrgInsuranceApplication::where('org_company_id', $company->id)
-
+            // Agregamos with('customer') para traer la relación
+            $application = OrgInsuranceApplication::with('customer')
+                ->where('org_company_id', $company->id)
                 ->where('user_id', $request->user()->id)
-
                 ->where('uid', $applicationUid)
-
                 ->firstOrFail();
 
             return response()->json(['data' => $application], 200);
 
         } catch (\Exception $e) {
-
             return response()->json(['message' => 'La solicitud de seguro no fue encontrada.'], 404);
-
         }
-
     }
 }

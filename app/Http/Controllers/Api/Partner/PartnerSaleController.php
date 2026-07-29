@@ -18,7 +18,7 @@ class PartnerSaleController extends Controller
         // Obtenemos el ID del usuario autenticado (el Partner)
         $partnerId = $request->user()->id;
 
-        $sales = OrgSale::with(['customer:id,first_name,last_name,email']) // Eager loading optimizado para el partner
+        $sales = OrgSale::with(['customer:id,first_name,last_name,email']) 
             ->where('seller_id', $partnerId)
             ->orderBy('created_at', 'desc')
             ->select([

@@ -27,6 +27,7 @@ class OrgLoanApplication extends Model
         'uid',
         'org_company_id',
         'user_id',
+        'org_customer_id',
         'assigned_to',
         'applicant_name',
         'applicant_email',
@@ -39,6 +40,9 @@ class OrgLoanApplication extends Model
         'status',
         'notes',
         'metadata',
+        'commission_amount',   
+        'commission_status',   
+        'seller_payout_date',  
     ];
 
     /**
@@ -50,6 +54,7 @@ class OrgLoanApplication extends Model
         'applicant_dob' => 'date',
         'estimated_amount' => 'decimal:2',
         'metadata' => 'array',
+        'seller_payout_date' => 'date',
     ];
 
     /**
@@ -95,6 +100,14 @@ class OrgLoanApplication extends Model
         return $this->belongsTo(User::class, 'assigned_to');
     }
     
+    /**
+     * Cliente centralizado de la solicitud
+     */
+    public function customer()
+    {
+        return $this->belongsTo(OrgCustomer::class, 'org_customer_id');
+    }
+
     // ==========================================
     // Scopes (Opcional - Útiles para tus controladores)
     // ==========================================

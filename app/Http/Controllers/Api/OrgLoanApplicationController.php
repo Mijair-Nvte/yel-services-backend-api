@@ -5,16 +5,16 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Concerns\AuthorizesWorkspace;
 use App\Http\Controllers\Controller;
 use App\Models\OrgCompany;
-use App\Models\OrgInsuranceApplication;
+use App\Models\OrgLoanApplication;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 
-class OrgInsuranceApplicationController extends Controller
+class OrgLoanApplicationController extends Controller
 {
     use AuthorizesRequests, AuthorizesWorkspace;
 
     /**
-     * 📋 Listar todas las solicitudes de seguros de la compañía (Para el Admin)
+     * 📋 Listar todas las solicitudes de préstamos de la compañía (Para el Admin)
      */
     public function index(string $uid)
     {
@@ -23,10 +23,10 @@ class OrgInsuranceApplicationController extends Controller
 
             // 🛡️ Seguridad Contextual
             $this->authorizeWorkspace($company);
-            $this->authorize('view_insurance');
+            $this->authorize('view_loans'); // Asegúrate de tener este permiso en Spatie
 
             // Listar solicitudes ordenadas por las más recientes y cargando al cliente
-            $applications = OrgInsuranceApplication::with('customer')
+            $applications = OrgLoanApplication::with('customer')
                 ->where('org_company_id', $company->id)
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -34,12 +34,12 @@ class OrgInsuranceApplicationController extends Controller
             return response()->json(['data' => $applications], 200);
 
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Error al listar las solicitudes de seguros.'], 500);
+            return response()->json(['message' => 'Error al listar las solicitudes de préstamos.'], 500);
         }
     }
 
     /**
-     * 👁️ Ver el detalle de una solicitud específica
+     * 👁️ Ver el detalle de una solicitud de préstamo específica
      */
     public function show(string $uid, string $applicationUid)
     {
@@ -47,9 +47,9 @@ class OrgInsuranceApplicationController extends Controller
             $company = OrgCompany::where('uid', $uid)->firstOrFail();
 
             $this->authorizeWorkspace($company);
-            $this->authorize('view_insurance');
+            $this->authorize('view_loans');
 
-            $application = OrgInsuranceApplication::with('customer')
+            $application = OrgLoanApplication::with('customer')
                 ->where('uid', $applicationUid)
                 ->where('org_company_id', $company->id)
                 ->firstOrFail();
@@ -70,15 +70,15 @@ class OrgInsuranceApplicationController extends Controller
             $company = OrgCompany::where('uid', $uid)->firstOrFail();
 
             $this->authorizeWorkspace($company);
-            $this->authorize('manage_insurance');
+            $this->authorize('manage_loans'); // Permiso para administrar préstamos
 
-            $application = OrgInsuranceApplication::where('uid', $applicationUid)
+            $application = OrgLoanApplication::where('uid', $applicationUid)
                 ->where('org_company_id', $company->id)
                 ->firstOrFail();
 
             $request->validate([
                 'status' => 'sometimes|required|in:pending,reviewing,approved,rejected,completed',
-                'insurance_type' => 'sometimes|string|max:255',
+                'loan_type' => 'sometimes|string|max:100',
                 'commission_amount' => 'sometimes|numeric|min:0',
                 'commission_status' => 'sometimes|in:pending,paid,not_applicable',
                 'seller_payout_date' => 'nullable|date',
@@ -87,14 +87,14 @@ class OrgInsuranceApplicationController extends Controller
             $application->update($request->all());
 
             return response()->json([
-                'message' => 'Solicitud de seguro actualizada correctamente.',
+                'message' => 'Solicitud de préstamo actualizada correctamente.',
                 'data' => $application,
             ], 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['errors' => $e->errors()], 422);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Error al actualizar la solicitud de seguro.'], 500);
+            return response()->json(['message' => 'Error al actualizar la solicitud de préstamo.'], 500);
         }
     }
 
@@ -107,15 +107,15 @@ class OrgInsuranceApplicationController extends Controller
             $company = OrgCompany::where('uid', $uid)->firstOrFail();
 
             $this->authorizeWorkspace($company);
-            $this->authorize('manage_insurance');
+            $this->authorize('manage_loans');
 
-            $application = OrgInsuranceApplication::where('uid', $applicationUid)
+            $application = OrgLoanApplication::where('uid', $applicationUid)
                 ->where('org_company_id', $company->id)
                 ->firstOrFail();
 
             $application->delete();
 
-            return response()->json(['message' => 'Solicitud de seguro eliminada correctamente.'], 200);
+            return response()->json(['message' => 'Solicitud de préstamo eliminada correctamente.'], 200);
 
         } catch (\Exception $e) {
             return response()->json(['message' => 'Error al eliminar la solicitud.'], 500);

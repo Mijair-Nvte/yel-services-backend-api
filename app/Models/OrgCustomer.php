@@ -54,4 +54,20 @@ class OrgCustomer extends Model
     {
         return $this->hasMany(OrgServiceOrder::class, 'org_customer_id');
     }
+
+    /**
+     * Solicitudes de préstamos del cliente
+     */
+    public function loanApplications() // <--- NUEVA RELACIÓN AGREGADA
+    {
+        return $this->hasMany(OrgLoanApplication::class, 'org_customer_id');
+    }
+
+    /**
+     * Solicitudes de seguros del cliente
+     */
+    public function insuranceApplications()
+    {
+        return $this->hasMany(OrgInsuranceApplication::class, 'org_customer_id');
+    }
 }

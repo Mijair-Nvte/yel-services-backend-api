@@ -21,9 +21,13 @@ class OrgInsuranceApplication extends Model
         'uid',
         'org_company_id',
         'user_id',
+        'org_customer_id',
         'assigned_to',
         'insurance_type',
         'status',
+        'commission_amount',  
+        'commission_status',  
+        'seller_payout_date', 
         'applicant_name',
         'applicant_email',
         'applicant_phone',
@@ -41,7 +45,9 @@ class OrgInsuranceApplication extends Model
      */
     protected $casts = [
         'applicant_dob' => 'date',
-        'metadata' => 'array', // Convierte automáticamente el JSON a un array de PHP y viceversa
+        'metadata' => 'array', 
+        'commission_amount' => 'decimal:2',
+        'seller_payout_date' => 'date',
     ];
 
     /**
@@ -78,5 +84,13 @@ class OrgInsuranceApplication extends Model
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    /**
+     * Cliente centralizado de la solicitud de seguro
+     */
+    public function customer()
+    {
+        return $this->belongsTo(OrgCustomer::class, 'org_customer_id');
     }
 }

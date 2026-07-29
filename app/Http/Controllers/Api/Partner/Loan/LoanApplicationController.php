@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Api\Partner\Loan;
 use App\Http\Controllers\Controller;
 use App\Models\OrgCompany;
 use App\Models\OrgLoanApplication;
+use App\Traits\HandlesCustomers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class LoanApplicationController extends Controller
 {
+    use HandlesCustomers;
+
     /**
      * Listar todas las solicitudes de préstamo del partner actual.
      */
@@ -18,7 +21,8 @@ class LoanApplicationController extends Controller
         $company = OrgCompany::where('uid', $companyUid)->firstOrFail();
         $userId = Auth::id();
 
-        $applications = OrgLoanApplication::where('org_company_id', $company->id)
+        $applications = OrgLoanApplication::with('customer') 
+            ->where('org_company_id', $company->id)
             ->where('user_id', $userId)
             ->latest()
             ->paginate(15);
@@ -46,10 +50,22 @@ class LoanApplicationController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        // Agregamos las llaves foráneas y el estado inicial automáticamente
+        // 3. Utilizamos el trait para buscar o crear al cliente centralizado
+        $customerId = $this->findOrCreateCustomer(
+            $company->id,
+            $validated['applicant_name'],
+            $validated['applicant_email'],
+            $validated['applicant_phone']
+        );
+
+        // 4. Agregamos las llaves foráneas, el cliente y el estado inicial
         $validated['org_company_id'] = $company->id;
         $validated['user_id'] = $userId;
+        $validated['org_customer_id'] = $customerId; // Vinculamos el ID del cliente devuelto por el trait
         $validated['status'] = 'pending';
+
+        // Nota: commission_amount, commission_status y seller_payout_date
+        // tomarán sus valores por defecto de la migración de forma automática.
 
         // Creamos la solicitud de préstamo de forma directa
         $application = OrgLoanApplication::create($validated);
@@ -69,7 +85,8 @@ class LoanApplicationController extends Controller
         $userId = Auth::id();
 
         // Buscamos la solicitud y validamos que pertenezca tanto a la compañía como al usuario actual
-        $application = OrgLoanApplication::where('org_company_id', $company->id)
+        $application = OrgLoanApplication::with('customer')
+            ->where('org_company_id', $company->id)
             ->where('user_id', $userId)
             ->where('uid', $applicationUid)
             ->firstOrFail();
