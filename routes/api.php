@@ -328,13 +328,13 @@ Route::prefix('v1')->group(function () {
 
             Route::group([], function () {
                 // Ver Solicitudes
-                Route::middleware('can:view_loans')->group(function () {
+                Route::middleware('can:view_loan')->group(function () {
                     Route::get('/loan-applications', [OrgLoanApplicationController::class, 'index']);
                     Route::get('/loan-applications/{applicationUid}', [OrgLoanApplicationController::class, 'show']);
                 });
 
                 // Gestionar Solicitudes
-                Route::middleware('can:manage_loans')->group(function () {
+                Route::middleware('can:manage_loan')->group(function () {
                     Route::put('/loan-applications/{applicationUid}', [OrgLoanApplicationController::class, 'update']);
                     Route::delete('/loan-applications/{applicationUid}', [OrgLoanApplicationController::class, 'destroy']);
                 });
