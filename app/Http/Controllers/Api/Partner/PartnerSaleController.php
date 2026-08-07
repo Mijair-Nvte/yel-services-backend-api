@@ -15,7 +15,7 @@ class PartnerSaleController extends Controller
      */
     public function index(Request $request)
     {
-        // Obtenemos el ID del usuario autenticado (el Partner)
+        // Obtenemos el ID del usuario autenticado (el yel pro , o yel investor)
         $partnerId = $request->user()->id;
 
         $sales = OrgSale::with(['customer:id,first_name,last_name,email']) 

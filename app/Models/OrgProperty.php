@@ -21,6 +21,7 @@ class OrgProperty extends Model
         'image_path',
         'status',
         'closed_at',
+        'closing_type',
     ];
 
     protected $casts = [
@@ -47,5 +48,22 @@ class OrgProperty extends Model
     public function owner()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * Scope para filtrar únicamente las propiedades que cerraron con YEL 
+     * y que por lo tanto califican para subir de nivel.
+     */
+    public function scopeQualifyingForLevel($query)
+    {
+        return $query->where('closing_type', 'yel_internal');
+    }
+
+    /**
+     * Scope para propiedades externas (solo gestión)
+     */
+    public function scopeExternalOnly($query)
+    {
+        return $query->where('closing_type', 'external');
     }
 }

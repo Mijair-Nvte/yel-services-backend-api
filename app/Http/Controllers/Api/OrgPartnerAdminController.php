@@ -29,17 +29,18 @@ class OrgPartnerAdminController extends Controller
             $company = OrgCompany::where('uid', $uid)->firstOrFail();
             $this->authorizeWorkspace($company); // Validar acceso al workspace
 
-            // Permitir filtrar por estatus (pending, approved, rejected)
+            // Permitir filtrar por estatus opcionalmente
             $status = $request->query('status');
 
             $query = OrgCompanyPartner::where('org_company_id', $company->id)
-                ->with('user:id,name,email'); // Traemos datos básicos del usuario
+                ->with('user:id,name,email');
 
-            if ($status) {
+            // Solo filtramos si viene un estatus y no está vacío
+            if (! empty($status)) {
                 $query->where('status', $status);
             }
 
-            // Ordenar para ver los pendientes más recientes primero
+            // Ordenar para ver los más recientes primero
             $partners = $query->latest()->get();
 
             return response()->json($partners, 200);

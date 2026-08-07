@@ -37,6 +37,7 @@ return [
     
     'ghl' => [
         'inbound_webhook_url' => env('GHL_INBOUND_WEBHOOK_URL'),
+        'inbound_webhook_referrals_investor_url' => env('GHL_INBOUND_WEBHOOK_REFERRALS_INVESTOR_URL'),
     ],
 
 

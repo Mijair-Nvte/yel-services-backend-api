@@ -15,13 +15,17 @@ class SendSaleToGHLDispatcherJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected array $ghlPayload;
+    protected ?string $webhookUrl;
 
     /**
      * Create a new job instance.
      */
-    public function __construct(array $ghlPayload)
+    public function __construct(array $ghlPayload, ?string $webhookUrl = null)
     {
         $this->ghlPayload = $ghlPayload;
+        
+        // Si mandamos una URL la usamos, si no, usamos la de ventas por defecto
+        $this->webhookUrl = $webhookUrl ?? config('services.ghl.inbound_webhook_url');
     }
 
     /**
@@ -29,18 +33,18 @@ class SendSaleToGHLDispatcherJob implements ShouldQueue
      */
     public function handle(): void
     {
-        // El webhook "Enrutador" que crearemos en GHL
-        $webhookUrl = config('services.ghl.inbound_webhook_url');
-
-        if (!$webhookUrl) {
-            Log::warning('⚠️ GHL Webhook URL no está configurada en services.php');
+        if (!$this->webhookUrl) {
+            Log::warning('⚠️ GHL Webhook URL no está configurada.');
             return;
         }
 
         try {
-            Log::info('🚀 Enviando datos de la venta al Dispatcher de GHL...', ['email' => $this->ghlPayload['email'] ?? '']);
+            Log::info('🚀 Enviando datos al Dispatcher de GHL...', [
+                'email' => $this->ghlPayload['email'] ?? '',
+                'webhook_url' => $this->webhookUrl // Para que veas en los logs a qué URL se mandó
+            ]);
             
-            $response = Http::post($webhookUrl, $this->ghlPayload);
+            $response = Http::post($this->webhookUrl, $this->ghlPayload);
 
             if ($response->successful()) {
                 Log::info('✅ Datos enviados a GHL con éxito.');

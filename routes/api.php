@@ -29,6 +29,10 @@ use App\Http\Controllers\Api\OrgLoanApplicationController;
 use App\Http\Controllers\Api\OrgPaymentLinkMappingController;
 use App\Http\Controllers\Api\OrgPositionController;
 use App\Http\Controllers\Api\OrgServiceController;
+use App\Http\Controllers\Api\Partner\InvestorReady\ExternalPropertyController;
+use App\Http\Controllers\Api\Partner\InvestorReady\InvestorCheckoutController;
+use App\Http\Controllers\Api\Partner\InvestorReady\InvestorServiceController;
+use App\Http\Controllers\Api\Partner\InvestorReady\InvestorReferralController;
 use App\Http\Controllers\Api\Partner\PartnerDashboardController;
 use App\Http\Controllers\Api\Partner\PartnerSaleController;
 use App\Http\Controllers\Api\SalesController;
@@ -57,6 +61,8 @@ Route::prefix('v1')->group(function () {
     // ruta de la tienda donde se mostraran los servicios
     Route::get('/public/org-companies/{uid}/services', [PublicOrgServiceController::class, 'index']);
     Route::get('/public/org-companies/{uid}/validate-referral/{code}', [PublicOrgServiceController::class, 'validateReferral']);
+
+    Route::get('/realtor/auto-complete', [\App\Http\Controllers\Api\Partner\InvestorReady\ExternalPropertyController::class, 'autoComplete']);
 
     // ruta para iniciar sesion de pago
     // routes/api.php
@@ -439,21 +445,6 @@ Route::prefix('v1')->group(function () {
             Route::get('/me', App\Http\Controllers\Api\Partner\AffiliateMeController::class);
 
             // ==========================================
-            // 🏢 MÓDULO INVESTOR READY (Portal del Partner) cambios
-            // ==========================================
-            Route::prefix('investor-ready')->group(function () {
-
-                // Propiedades del Partner
-                Route::get('/properties', [\App\Http\Controllers\Api\Partner\InvestorReady\PropertyController::class, 'index']);
-                Route::get('/properties/{propertyUid}', [\App\Http\Controllers\Api\Partner\InvestorReady\PropertyController::class, 'show']);
-
-                // Niveles y Beneficios
-                Route::get('/my-tier', [\App\Http\Controllers\Api\Partner\InvestorReady\InvestorTierController::class, 'current']);
-                Route::get('/tiers', [\App\Http\Controllers\Api\Partner\InvestorReady\InvestorTierController::class, 'index']);
-
-            });
-
-            // ==========================================
             // 📁 MIS ARCHIVOS (Carpetas y Documentos Globales del Usuario)
             // ==========================================
             // Requerimos el UID de la compañía en la URL para saber a qué entorno asociar los registros,
@@ -461,6 +452,7 @@ Route::prefix('v1')->group(function () {
             Route::prefix('companies/{companyUid}')->group(function () {
 
                 // 📂 Gestión de Carpetas
+
                 Route::get('/folders', [\App\Http\Controllers\Api\Partner\PartnerFolderController::class, 'index']);
                 Route::post('/folders', [\App\Http\Controllers\Api\Partner\PartnerFolderController::class, 'store']);
                 Route::get('/folders/{folderUid}', [\App\Http\Controllers\Api\Partner\PartnerFolderController::class, 'show']);
@@ -513,6 +505,24 @@ Route::prefix('v1')->group(function () {
 
                     // 👁️ Ver detalle específico (GET: /api/v1/partner/companies/{companyUid}/insurance-applications/{applicationUid})
                     Route::get('/{applicationUid}', [\App\Http\Controllers\Api\Partner\Insurance\InsuranceApplicationController::class, 'show']);
+                });
+
+                // ==========================================
+                // 🏢 MÓDULO INVESTOR READY (Portal del Partner) cambios
+                // ==========================================
+                Route::prefix('investor-ready')->group(function () {
+
+                    // Propiedades del Partner
+                    Route::get('/properties', [\App\Http\Controllers\Api\Partner\InvestorReady\PropertyController::class, 'index']);
+                    Route::post('/properties', [\App\Http\Controllers\Api\Partner\InvestorReady\PropertyController::class, 'store']);
+                    Route::get('/properties/{propertyUid}', [\App\Http\Controllers\Api\Partner\InvestorReady\PropertyController::class, 'show']);
+                    Route::put('/properties/{propertyUid}', [\App\Http\Controllers\Api\Partner\InvestorReady\PropertyController::class, 'update']);
+                    Route::delete('/properties/{propertyUid}', [\App\Http\Controllers\Api\Partner\InvestorReady\PropertyController::class, 'destroy']);
+                    // Niveles y Beneficios
+                    Route::get('/my-tier', [\App\Http\Controllers\Api\Partner\InvestorReady\InvestorTierController::class, 'current']);
+                    Route::get('/tiers', [\App\Http\Controllers\Api\Partner\InvestorReady\InvestorTierController::class, 'index']);
+
+                    Route::get('/external-properties', [ExternalPropertyController::class, 'index']);
                 });
 
                 // 👇 Ruta para el catálogo de servicios del Partner
@@ -568,6 +578,28 @@ Route::prefix('v1')->group(function () {
 
         });
 
+    });
+
+    // ========================================================================
+    // RUTAS PARA YEL INVESTOR (B2C / Compras directas)
+    // ========================================================================
+    Route::middleware('auth:sanctum')->group(function () {
+
+        Route::prefix('investor')->group(function () {
+
+            // Todas las rutas de Investor que requieran la compañía
+            Route::prefix('companies/{companyUid}')->group(function () {
+
+                //  Ruta para el catálogo de servicios de Yel Investor
+                Route::get('/services', [InvestorServiceController::class, 'index']);
+
+                Route::post('/checkout/create-session', [InvestorCheckoutController::class, 'createSession']);
+
+                Route::post('/referrals', [InvestorReferralController::class, 'store']);
+
+            });
+
+        });
     });
 
 });
