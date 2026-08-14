@@ -13,7 +13,7 @@ class OrgFeedback extends Model
     protected $table = 'org_feedbacks';
     
     protected $fillable = [
-        'uid', 'org_company_id', 'user_id', 'type', 'status', 'title', 'description', 'document_id'
+        'uid', 'org_company_id', 'user_id', 'type','source', 'status', 'title', 'description', 'document_id'
     ];
 
     // Generar el UID automáticamente al crear

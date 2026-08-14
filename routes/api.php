@@ -31,8 +31,9 @@ use App\Http\Controllers\Api\OrgPositionController;
 use App\Http\Controllers\Api\OrgServiceController;
 use App\Http\Controllers\Api\Partner\InvestorReady\ExternalPropertyController;
 use App\Http\Controllers\Api\Partner\InvestorReady\InvestorCheckoutController;
-use App\Http\Controllers\Api\Partner\InvestorReady\InvestorServiceController;
+use App\Http\Controllers\Api\Partner\InvestorReady\InvestorDashboardController;
 use App\Http\Controllers\Api\Partner\InvestorReady\InvestorReferralController;
+use App\Http\Controllers\Api\Partner\InvestorReady\InvestorServiceController;
 use App\Http\Controllers\Api\Partner\PartnerDashboardController;
 use App\Http\Controllers\Api\Partner\PartnerSaleController;
 use App\Http\Controllers\Api\SalesController;
@@ -523,6 +524,7 @@ Route::prefix('v1')->group(function () {
                     Route::get('/tiers', [\App\Http\Controllers\Api\Partner\InvestorReady\InvestorTierController::class, 'index']);
 
                     Route::get('/external-properties', [ExternalPropertyController::class, 'index']);
+
                 });
 
                 // 👇 Ruta para el catálogo de servicios del Partner
@@ -596,7 +598,7 @@ Route::prefix('v1')->group(function () {
                 Route::post('/checkout/create-session', [InvestorCheckoutController::class, 'createSession']);
 
                 Route::post('/referrals', [InvestorReferralController::class, 'store']);
-
+                Route::get('/dashboard', [InvestorDashboardController::class, 'index']);
             });
 
         });

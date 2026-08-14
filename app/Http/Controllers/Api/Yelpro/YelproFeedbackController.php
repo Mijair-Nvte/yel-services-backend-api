@@ -19,6 +19,7 @@ class YelproFeedbackController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'required|string',
             'type' => 'required|in:bug,feature_request,general_comment,help',
+            'source' => 'required|in:yelpro,yelinvestor',
         ]);
 
         // 2. Obtener la compañía usando el UID de la ruta
@@ -31,7 +32,8 @@ class YelproFeedbackController extends Controller
             'title' => $validated['title'],
             'description' => $validated['description'],
             'type' => $validated['type'],
-            'status' => 'pending', // Estado por defecto
+            'source' => $validated['source'],
+            'status' => 'pending',
         ]);
 
         // TODO: (Opcional) Disparar evento de notificación a administradores
@@ -43,16 +45,21 @@ class YelproFeedbackController extends Controller
         ], 201);
     }
 
-    public function index(string $companyUid)
+    public function index(Request $request, string $companyUid)
     {
+
         $company = OrgCompany::where('uid', $companyUid)->firstOrFail();
 
-        $feedbacks = OrgFeedback::where('org_company_id', $company->id)
-            ->where('user_id', auth()->id())
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $query = OrgFeedback::where('org_company_id', $company->id)
+            ->where('user_id', auth()->id());
 
-        // 👇 Envuelve la variable en un arreglo con la llave 'data'
+        // Si mandan el parámetro source en la URL (ej: ?source=yelinvestor), lo filtramos
+        if ($request->has('source')) {
+            $query->where('source', $request->source);
+        }
+
+        $feedbacks = $query->orderBy('created_at', 'desc')->get();
+
         return response()->json([
             'data' => $feedbacks,
         ]);

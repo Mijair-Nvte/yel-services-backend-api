@@ -58,8 +58,8 @@ class InvestorCheckoutController extends Controller
 
             // 6. Creamos la sesión usando el usuario autenticado (Cashier nativo)
             $checkout = $user->checkout($items, [
-                'success_url' => "{$investorUrl}/dashboard/{$company->uid}/investor-services?success=true&session_id={CHECKOUT_SESSION_ID}",
-                'cancel_url' => "{$investorUrl}/dashboard/{$company->uid}/investor-services?canceled=true",
+                'success_url' => "{$investorUrl}/dashboard/{$company->uid}/payment/success?session_id={CHECKOUT_SESSION_ID}",
+                'cancel_url' => "{$investorUrl}/dashboard/{$company->uid}/payment/cancel",
                 'metadata' => $metadata,
                 'payment_intent_data' => ['metadata' => $metadata],
                 'phone_number_collection' => [
