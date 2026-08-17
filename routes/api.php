@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Auth\LoginController as AuthLoginController;
 use App\Http\Controllers\Api\Auth\LogoutController as AuthLogoutController;
 use App\Http\Controllers\Api\Auth\MeController as AuthMeController;
 use App\Http\Controllers\Api\Auth\RegisterController;
+use App\Http\Controllers\Api\Partner\InvestorReady\InvestorOrderController;
 use App\Http\Controllers\Api\Auth\ResetPasswordController;
 use App\Http\Controllers\Api\Auth\VerifyOtpController;
 use App\Http\Controllers\Api\ChatbotController;
@@ -599,6 +600,8 @@ Route::prefix('v1')->group(function () {
 
                 Route::post('/referrals', [InvestorReferralController::class, 'store']);
                 Route::get('/dashboard', [InvestorDashboardController::class, 'index']);
+
+                Route::get('/my-orders', [InvestorOrderController::class, 'index']);
             });
 
         });

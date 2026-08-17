@@ -71,8 +71,9 @@ class InvestorSaleProcessingService
                 ]);
 
                 // C. Creación de la Orden de Trabajo
-                if ($stripePaymentStatus === 'paid' && $service) {
-                    $this->createServiceOrder($sale, $service, $customerId, $companyId);
+             if ($stripePaymentStatus === 'paid' && $service) {
+                    // Solo agregas $user al final de los parámetros 👇
+                    $this->createServiceOrder($sale, $service, $customerId, $companyId, $user);
                 }
             });
 
@@ -158,7 +159,9 @@ class InvestorSaleProcessingService
             'status' => 'pending',
             'metadata' => [
                 'initiated_by' => 'yel_investor_portal',
-                'cloned_at' => now()->toDateTimeString(),
+                'buyer_type'   => $user ? 'investor_user' : 'guest_customer', 
+                'user_id'      => $user ? $user->id : null,
+                'cloned_at'    => now()->toDateTimeString(),
             ],
         ]);
 

@@ -14,6 +14,7 @@ class OrgCustomer extends Model
     protected $fillable = [
         'uid',
         'org_company_id',
+        'user_id',
         'first_name',
         'last_name',
         'email',
