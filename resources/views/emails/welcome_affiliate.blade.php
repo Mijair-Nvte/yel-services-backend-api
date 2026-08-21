@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bienvenido a YEL PRO</title>
+    <title>Bienvenido</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #EDEAE3;">
 
@@ -17,7 +17,7 @@
      <tr><td style="background:#0E1B29;padding:22px 36px">
         <table width="100%" cellpadding="0" cellspacing="0"><tr>
           <td>
-            <img src="{{ url('assets/img/Yel_Pro_logo_cream.png') }}" alt="YEL PRO" width="120" style="display:block; max-width: 120px; height: auto;">
+            <img src="{{ url('assets/img/YEL_Group_White.png') }}" alt="YEL GROUP" width="120" style="display:block; max-width: 120px; height: auto;">
           </td>
           <td align="right">
             <span style="font-size:.68rem;font-weight:600;color:#EAB308;letter-spacing:.06em;text-transform:uppercase">✨ Nueva Cuenta</span>
@@ -49,7 +49,7 @@
           Saludos cordiales,
         </p>
         <p style="font-size:.7rem;color:#0E1B29;margin:0;text-align:center;font-weight:600">
-          El equipo de seguridad de YEL PRO
+          El equipo de seguridad de YEL SERVICES.
         </p>
       </td></tr>
 

@@ -69,12 +69,24 @@ class PropertyController extends Controller
             $validator = Validator::make($request->all(), [
                 'title' => 'required|string|max:255',
                 'portfolio_type' => 'required|string|max:100',
+                'property_type' => 'nullable|string|max:100',
                 'closing_type' => 'required|in:yel_internal,external',
-                'investment_amount' => 'required|numeric|min:0',
-                'cash_flow_status' => 'nullable|string|max:100',
+                
+                // Nuevos campos agregados
+                'borrower_first_name' => 'nullable|string|max:255',
+                'borrower_last_name' => 'nullable|string|max:255',
+                'co_borrower_first_name' => 'nullable|string|max:255',
+                'co_borrower_last_name' => 'nullable|string|max:255',
+                'borrower_mobile' => 'nullable|string|max:50',
+                'address' => 'nullable|string|max:255',
+                'city' => 'nullable|string|max:100',
+                'state' => 'nullable|string|max:100',
+                'zip' => 'nullable|string|max:20',
+                'occupancy' => 'nullable|string|max:100',
+                
                 'status' => 'nullable|string|max:100',
                 'closed_at' => 'nullable|date',
-                'image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+               'image_path' => 'nullable|string|max:1000',
             ]);
 
             if ($validator->fails()) {
@@ -86,12 +98,7 @@ class PropertyController extends Controller
             
             $data['uid'] = 'prop_' . strtolower(Str::random(25));
             $data['user_id'] = $user->id;
-            $data['org_company_id'] = $company->id; // Vinculación directa por compañía
-
-            if ($request->hasFile('image')) {
-                $path = $request->file('image')->store('properties', 'public');
-                $data['image_path'] = $path;
-            }
+            $data['org_company_id'] = $company->id; 
 
             $property = OrgProperty::create($data);
 
@@ -123,12 +130,24 @@ class PropertyController extends Controller
             $validator = Validator::make($request->all(), [
                 'title' => 'sometimes|required|string|max:255',
                 'portfolio_type' => 'sometimes|required|string|max:100',
+                'property_type' => 'nullable|string|max:100',
                 'closing_type' => 'sometimes|required|in:yel_internal,external',
-                'investment_amount' => 'sometimes|required|numeric|min:0',
-                'cash_flow_status' => 'nullable|string|max:100',
+                
+                // Nuevos campos agregados
+                'borrower_first_name' => 'nullable|string|max:255',
+                'borrower_last_name' => 'nullable|string|max:255',
+                'co_borrower_first_name' => 'nullable|string|max:255',
+                'co_borrower_last_name' => 'nullable|string|max:255',
+                'borrower_mobile' => 'nullable|string|max:50',
+                'address' => 'nullable|string|max:255',
+                'city' => 'nullable|string|max:100',
+                'state' => 'nullable|string|max:100',
+                'zip' => 'nullable|string|max:20',
+                'occupancy' => 'nullable|string|max:100',
+                
                 'status' => 'nullable|string|max:100',
                 'closed_at' => 'nullable|date',
-                'image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+                'image_path' => 'nullable|string|max:1000',
             ]);
 
             if ($validator->fails()) {
@@ -137,13 +156,7 @@ class PropertyController extends Controller
 
             $data = $validator->validated();
 
-            if ($request->hasFile('image')) {
-                if ($property->image_path) {
-                    Storage::disk('public')->delete($property->image_path);
-                }
-                $path = $request->file('image')->store('properties', 'public');
-                $data['image_path'] = $path;
-            }
+        
 
             $property->update($data);
 

@@ -6,7 +6,6 @@ use App\Http\Controllers\Api\Auth\LoginController as AuthLoginController;
 use App\Http\Controllers\Api\Auth\LogoutController as AuthLogoutController;
 use App\Http\Controllers\Api\Auth\MeController as AuthMeController;
 use App\Http\Controllers\Api\Auth\RegisterController;
-use App\Http\Controllers\Api\Partner\InvestorReady\InvestorOrderController;
 use App\Http\Controllers\Api\Auth\ResetPasswordController;
 use App\Http\Controllers\Api\Auth\VerifyOtpController;
 use App\Http\Controllers\Api\ChatbotController;
@@ -33,8 +32,10 @@ use App\Http\Controllers\Api\OrgServiceController;
 use App\Http\Controllers\Api\Partner\InvestorReady\ExternalPropertyController;
 use App\Http\Controllers\Api\Partner\InvestorReady\InvestorCheckoutController;
 use App\Http\Controllers\Api\Partner\InvestorReady\InvestorDashboardController;
+use App\Http\Controllers\Api\Partner\InvestorReady\InvestorOrderController;
 use App\Http\Controllers\Api\Partner\InvestorReady\InvestorReferralController;
 use App\Http\Controllers\Api\Partner\InvestorReady\InvestorServiceController;
+use App\Http\Controllers\Api\Partner\InvestorReady\InvestorRegisterController;
 use App\Http\Controllers\Api\Partner\PartnerDashboardController;
 use App\Http\Controllers\Api\Partner\PartnerSaleController;
 use App\Http\Controllers\Api\SalesController;
@@ -93,6 +94,10 @@ Route::prefix('v1')->group(function () {
         Route::put('/account', [AccountController::class, 'update']);
         Route::post('/account/avatar', [AccountController::class, 'uploadAvatar']);
 
+        // ☁️ ALMACENAMIENTO GLOBAL (R2)
+        Route::post('/storage/presign', [\App\Http\Controllers\Api\Common\CloudStorageController::class, 'presign']);
+
+        
         // 🏢 Compañías (Nivel General - Todos pueden listar las suyas y crear nuevas)
         Route::get('/org-companies', [OrgCompanyController::class, 'index']);
         Route::post('/org-companies', [OrgCompanyController::class, 'store']);
@@ -583,9 +588,23 @@ Route::prefix('v1')->group(function () {
 
     });
 
+    
+    
+    // ========================================================================
+    // RUTAS PARA YEL INVESTOR PUBLICAS DONDE NO SE OCUPA TOKEN sanctum
+    // ========================================================================
+    
+
+    Route::prefix('investor')->group(function () {
+        Route::post('/register', InvestorRegisterController::class);
+
+    });
+
+    
     // ========================================================================
     // RUTAS PARA YEL INVESTOR (B2C / Compras directas)
     // ========================================================================
+
     Route::middleware('auth:sanctum')->group(function () {
 
         Route::prefix('investor')->group(function () {
