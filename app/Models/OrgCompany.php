@@ -93,4 +93,12 @@ class OrgCompany extends Model
     {
         return $this->hasMany(OrgBankAccount::class, 'org_company_id');
     }
+
+    /**
+     * Configuraciones de los módulos de la compañía
+     */
+    public function moduleSettings(): HasMany
+    {
+        return $this->hasMany(OrgModuleSetting::class, 'org_company_id');
+    }
 }

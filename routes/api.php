@@ -34,8 +34,8 @@ use App\Http\Controllers\Api\Partner\InvestorReady\InvestorCheckoutController;
 use App\Http\Controllers\Api\Partner\InvestorReady\InvestorDashboardController;
 use App\Http\Controllers\Api\Partner\InvestorReady\InvestorOrderController;
 use App\Http\Controllers\Api\Partner\InvestorReady\InvestorReferralController;
-use App\Http\Controllers\Api\Partner\InvestorReady\InvestorServiceController;
 use App\Http\Controllers\Api\Partner\InvestorReady\InvestorRegisterController;
+use App\Http\Controllers\Api\Partner\InvestorReady\InvestorServiceController;
 use App\Http\Controllers\Api\Partner\PartnerDashboardController;
 use App\Http\Controllers\Api\Partner\PartnerSaleController;
 use App\Http\Controllers\Api\SalesController;
@@ -97,7 +97,6 @@ Route::prefix('v1')->group(function () {
         // ☁️ ALMACENAMIENTO GLOBAL (R2)
         Route::post('/storage/presign', [\App\Http\Controllers\Api\Common\CloudStorageController::class, 'presign']);
 
-        
         // 🏢 Compañías (Nivel General - Todos pueden listar las suyas y crear nuevas)
         Route::get('/org-companies', [OrgCompanyController::class, 'index']);
         Route::post('/org-companies', [OrgCompanyController::class, 'store']);
@@ -179,6 +178,14 @@ Route::prefix('v1')->group(function () {
                     Route::put('/payment-link-mappings/{mappingUid}', [OrgPaymentLinkMappingController::class, 'update']);
                     Route::delete('/payment-link-mappings/{mappingUid}', [OrgPaymentLinkMappingController::class, 'destroy']);
                 });
+            });
+
+            // Agrupamos bajo el prefijo /modules para que las URLs queden:
+            // GET /api/v1/org-companies/{uid}/modules/{moduleName}/settings
+            // PUT /api/v1/org-companies/{uid}/modules/{moduleName}/settings
+            Route::prefix('modules/{moduleName}')->group(function () {
+                Route::get('/settings', [\App\Http\Controllers\Api\OrgModuleSettingController::class, 'show']);
+                Route::put('/settings', [\App\Http\Controllers\Api\OrgModuleSettingController::class, 'update']);
             });
 
             // ==========================================
@@ -588,19 +595,15 @@ Route::prefix('v1')->group(function () {
 
     });
 
-    
-    
     // ========================================================================
     // RUTAS PARA YEL INVESTOR PUBLICAS DONDE NO SE OCUPA TOKEN sanctum
     // ========================================================================
-    
 
     Route::prefix('investor')->group(function () {
         Route::post('/register', InvestorRegisterController::class);
 
     });
 
-    
     // ========================================================================
     // RUTAS PARA YEL INVESTOR (B2C / Compras directas)
     // ========================================================================

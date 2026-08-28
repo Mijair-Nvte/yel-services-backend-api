@@ -9,6 +9,7 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 use App\Models\OrgInsuranceApplication;
+use App\Models\OrgCompany; // 👈 1. Importar
 
 class InsuranceRequestMail extends Mailable implements ShouldQueue
 {
@@ -16,19 +17,17 @@ class InsuranceRequestMail extends Mailable implements ShouldQueue
 
     public $application;
     public $user;
+    public $company; // 👈 2. Agregar propiedad
+    public $partner; // 👈 3. Agregar propiedad
 
-    /**
-     * Create a new message instance.
-     */
-    public function __construct(OrgInsuranceApplication $application, $user)
+    public function __construct(OrgInsuranceApplication $application, $user, OrgCompany $company)
     {
         $this->application = $application;
         $this->user = $user;
+        $this->company = $company; // 👈 Asignar
+        $this->partner = $application->user; // 👈 Asignar
     }
 
-    /**
-     * Get the message envelope.
-     */
     public function envelope(): Envelope
     {
         return new Envelope(
@@ -36,9 +35,6 @@ class InsuranceRequestMail extends Mailable implements ShouldQueue
         );
     }
 
-    /**
-     * Get the message content definition.
-     */
     public function content(): Content
     {
         return new Content(

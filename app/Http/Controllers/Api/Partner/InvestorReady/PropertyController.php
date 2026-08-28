@@ -6,10 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\OrgCompany;
 use App\Models\OrgProperty;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class PropertyController extends Controller
 {
@@ -31,6 +30,7 @@ class PropertyController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Error al listar propiedades: '.$e->getMessage());
+
             return response()->json(['message' => 'Error al cargar tus propiedades.', 'error' => $e->getMessage()], 500);
         }
     }
@@ -65,13 +65,13 @@ class PropertyController extends Controller
     {
         try {
             $company = OrgCompany::where('uid', $companyUid)->firstOrFail();
-            
+
             $validator = Validator::make($request->all(), [
                 'title' => 'required|string|max:255',
                 'portfolio_type' => 'required|string|max:100',
                 'property_type' => 'nullable|string|max:100',
                 'closing_type' => 'required|in:yel_internal,external',
-                
+
                 // Nuevos campos agregados
                 'borrower_first_name' => 'nullable|string|max:255',
                 'borrower_last_name' => 'nullable|string|max:255',
@@ -83,10 +83,10 @@ class PropertyController extends Controller
                 'state' => 'nullable|string|max:100',
                 'zip' => 'nullable|string|max:20',
                 'occupancy' => 'nullable|string|max:100',
-                
+
                 'status' => 'nullable|string|max:100',
                 'closed_at' => 'nullable|date',
-               'image_path' => 'nullable|string|max:1000',
+                'image_path' => 'nullable|string|max:1000',
             ]);
 
             if ($validator->fails()) {
@@ -95,20 +95,28 @@ class PropertyController extends Controller
 
             $user = $request->user();
             $data = $validator->validated();
-            
-            $data['uid'] = 'prop_' . strtolower(Str::random(25));
+
+            // Asignar el estado de verificación correcto basado en el closing_type
+            if ($data['closing_type'] === 'yel_internal') {
+                $data['verification_status'] = 'pending';
+            } else {
+                $data['verification_status'] = 'not_applicable';
+            }
+
+            $data['uid'] = 'prop_'.strtolower(Str::random(15));
             $data['user_id'] = $user->id;
-            $data['org_company_id'] = $company->id; 
+            $data['org_company_id'] = $company->id;
 
             $property = OrgProperty::create($data);
 
             return response()->json([
                 'message' => 'Propiedad registrada exitosamente.',
-                'data' => $property
+                'data' => $property,
             ], 201);
 
         } catch (\Exception $e) {
             Log::error('Error al crear propiedad: '.$e->getMessage());
+
             return response()->json(['message' => 'Error al crear la propiedad.', 'error' => $e->getMessage()], 500);
         }
     }
@@ -132,7 +140,7 @@ class PropertyController extends Controller
                 'portfolio_type' => 'sometimes|required|string|max:100',
                 'property_type' => 'nullable|string|max:100',
                 'closing_type' => 'sometimes|required|in:yel_internal,external',
-                
+
                 // Nuevos campos agregados
                 'borrower_first_name' => 'nullable|string|max:255',
                 'borrower_last_name' => 'nullable|string|max:255',
@@ -144,7 +152,7 @@ class PropertyController extends Controller
                 'state' => 'nullable|string|max:100',
                 'zip' => 'nullable|string|max:20',
                 'occupancy' => 'nullable|string|max:100',
-                
+
                 'status' => 'nullable|string|max:100',
                 'closed_at' => 'nullable|date',
                 'image_path' => 'nullable|string|max:1000',
@@ -156,13 +164,25 @@ class PropertyController extends Controller
 
             $data = $validator->validated();
 
-        
+            // Si envían un closing_type en el update, evaluamos el estado
+            if (isset($data['closing_type'])) {
+                if ($data['closing_type'] === 'yel_internal') {
+                    // Forzamos a pending si cambian a yel_internal, o si modifican una propiedad ya verificada
+                    $data['verification_status'] = 'pending';
+                    $data['verified_at'] = null;
+                    $data['verified_by'] = null;
+                } else {
+                    $data['verification_status'] = 'not_applicable';
+                    $data['verified_at'] = null;
+                    $data['verified_by'] = null;
+                }
+            }
 
             $property->update($data);
 
             return response()->json([
                 'message' => 'Propiedad actualizada exitosamente.',
-                'data' => $property->fresh()
+                'data' => $property->fresh(),
             ], 200);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {

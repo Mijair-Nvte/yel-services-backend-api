@@ -15,7 +15,7 @@ class OrgProperty extends Model
         'uid', 'org_company_id', 'user_id', 'title', 'portfolio_type', 'property_type',
         'closing_type', 'borrower_first_name', 'borrower_last_name',
         'co_borrower_first_name', 'co_borrower_last_name', 'borrower_mobile',
-        'address', 'city', 'state', 'zip', 'occupancy', 'image_path', 'status', 'closed_at',
+        'address', 'city', 'state', 'zip', 'occupancy', 'image_path', 'status', 'closed_at', 'verification_status', 'verified_at', 'verified_by',
     ];
 
     protected $casts = [
@@ -52,7 +52,8 @@ class OrgProperty extends Model
      */
     public function scopeQualifyingForLevel($query)
     {
-        return $query->where('closing_type', 'yel_internal');
+        return $query->where('closing_type', 'yel_internal')
+            ->where('verification_status', 'verified'); // <-- ¡La regla de oro añadida!
     }
 
     /**
@@ -63,13 +64,12 @@ class OrgProperty extends Model
         return $query->where('closing_type', 'external');
     }
 
-public function getImageUrlAttribute()
+    public function getImageUrlAttribute()
     {
-        if (!$this->image_path) {
+        if (! $this->image_path) {
             return null;
         }
 
-        
         return Storage::disk('r2_public')->url($this->image_path);
     }
 }

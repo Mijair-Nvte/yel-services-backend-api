@@ -4,18 +4,17 @@ namespace App\Http\Controllers\Api\Partner\Insurance;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Partner\Insurance\StoreInsuranceApplicationRequest;
-use App\Mail\InsuranceRequestMail;
 use App\Models\OrgCompany;
 use App\Models\OrgInsuranceApplication;
-use App\Traits\HandlesCustomers; //  Importamos el Trait
+use App\Traits\HandlesCustomers;
+use App\Traits\TriggersModuleAutomations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 class InsuranceApplicationController extends Controller
 {
-    use HandlesCustomers; //  Usamos el Trait dentro del controlador
+    use HandlesCustomers,TriggersModuleAutomations;
 
     /**
      * 📋 Listar el historial de solicitudes de seguro del cliente.
@@ -66,27 +65,14 @@ class InsuranceApplicationController extends Controller
             $data['org_company_id'] = $company->id;
             $data['user_id'] = $user->id;
             $data['org_customer_id'] = $customerId; // Vinculamos el ID del cliente
-            $data['status'] = 'pending';
+            $data['status'] = 'Open';
 
             $application = OrgInsuranceApplication::create($data);
 
             DB::commit();
 
-            // ✉️ ENVÍO DE CORREO A DESTINATARIOS ESPECÍFICOS
-            try {
-                $destinatarios = [
-                    'mnavarrete@yaestoylisto.com',
-                    'operaciones@yel.com',
-                    // 'kenneth@tuempresa.com',
-                ];
-
-                Mail::to($destinatarios)->send(new InsuranceRequestMail($application, $user));
-
-            } catch (\Exception $e) {
-                Log::error('Error al enviar email de nuevo prospecto de seguro: '.$e->getMessage(), [
-                    'application_uid' => $application->uid,
-                ]);
-            }
+            $this->triggerAutomations($company, 'insurances', 'created', $application);
+            // Disparamos la automatización por el evento "created"
 
             return response()->json([
                 'message' => 'Tu solicitud de revisión de seguro ha sido enviada correctamente.',

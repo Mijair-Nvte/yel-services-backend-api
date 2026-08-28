@@ -6,12 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\OrgCompany;
 use App\Models\OrgLoanApplication;
 use App\Traits\HandlesCustomers;
+use App\Traits\TriggersModuleAutomations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class LoanApplicationController extends Controller
 {
-    use HandlesCustomers;
+    use HandlesCustomers,TriggersModuleAutomations;
 
     /**
      * Listar todas las solicitudes de préstamo del partner actual.
@@ -62,13 +63,16 @@ class LoanApplicationController extends Controller
         $validated['org_company_id'] = $company->id;
         $validated['user_id'] = $userId;
         $validated['org_customer_id'] = $customerId; // Vinculamos el ID del cliente devuelto por el trait
-        $validated['status'] = 'pending';
+        $validated['status'] = 'Open';
 
         // Nota: commission_amount, commission_status y seller_payout_date
         // tomarán sus valores por defecto de la migración de forma automática.
 
         // Creamos la solicitud de préstamo de forma directa
         $application = OrgLoanApplication::create($validated);
+
+        //Disparamos la automatización por el evento "created"
+        $this->triggerAutomations($company, 'loans', 'created', $application);
 
         return response()->json([
             'message' => 'Solicitud de préstamo enviada exitosamente.',

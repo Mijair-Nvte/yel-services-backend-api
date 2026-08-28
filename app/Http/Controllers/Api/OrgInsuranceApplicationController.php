@@ -4,14 +4,17 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Concerns\AuthorizesWorkspace;
 use App\Http\Controllers\Controller;
+use App\Mail\InsuranceStatusUpdatedMail;
 use App\Models\OrgCompany;
 use App\Models\OrgInsuranceApplication;
+use App\Traits\TriggersModuleAutomations;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 
 class OrgInsuranceApplicationController extends Controller
 {
-    use AuthorizesRequests, AuthorizesWorkspace;
+    use AuthorizesRequests, AuthorizesWorkspace,TriggersModuleAutomations;
 
     /**
      * 📋 Listar todas las solicitudes de seguros de la compañía (Para el Admin)
@@ -26,7 +29,7 @@ class OrgInsuranceApplicationController extends Controller
             $this->authorize('view_insurance');
 
             // Listar solicitudes ordenadas por las más recientes y cargando al cliente
-            $applications = OrgInsuranceApplication::with('customer')
+            $applications = OrgInsuranceApplication::with(['customer', 'user'])
                 ->where('org_company_id', $company->id)
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -72,12 +75,15 @@ class OrgInsuranceApplicationController extends Controller
             $this->authorizeWorkspace($company);
             $this->authorize('manage_insurance');
 
-            $application = OrgInsuranceApplication::where('uid', $applicationUid)
+            $application = OrgInsuranceApplication::with(['customer', 'user'])
+                ->where('uid', $applicationUid)
                 ->where('org_company_id', $company->id)
                 ->firstOrFail();
 
+            $oldStatus = $application->status;
+
             $request->validate([
-                'status' => 'sometimes|required|in:pending,reviewing,approved,rejected,completed',
+                'status' => 'sometimes|required|in:Open,Lost,Won,Abandon',
                 'insurance_type' => 'sometimes|string|max:255',
                 'commission_amount' => 'sometimes|numeric|min:0',
                 'commission_status' => 'sometimes|in:pending,paid,not_applicable',
@@ -85,6 +91,15 @@ class OrgInsuranceApplicationController extends Controller
             ]);
 
             $application->update($request->all());
+
+            $this->triggerAutomations($company, 'insurances', 'updated', $application);
+
+            //  5. REGLA DE NEGOCIO: Notificar al Partner si el estatus cambió
+            if ($request->has('status') && $oldStatus !== $request->status) {
+                if ($application->user && $application->user->email) {
+                    Mail::to($application->user->email)->queue(new InsuranceStatusUpdatedMail($application, $company));
+                }
+            }
 
             return response()->json([
                 'message' => 'Solicitud de seguro actualizada correctamente.',

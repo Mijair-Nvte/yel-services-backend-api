@@ -65,6 +65,7 @@ class InvestorCheckoutController extends Controller
                 'phone_number_collection' => [
                     'enabled' => true,
                 ],
+                'allow_promotion_codes' => true,
             ]);
 
             return response()->json([
