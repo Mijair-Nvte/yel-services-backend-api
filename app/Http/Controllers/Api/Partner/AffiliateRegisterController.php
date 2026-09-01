@@ -33,7 +33,7 @@ class AffiliateRegisterController extends Controller
             'invite_code' => ['required', 'string'],
         ]);
 
-        // ==========================================
+        // =============================generateUniqueReferralCode=============
         // 2. VALIDACIÓN HARDCODEADA DEL CÓDIGO
         // ==========================================
         $secretCode = 'YELPRO26'; 

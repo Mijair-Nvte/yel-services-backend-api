@@ -4,11 +4,11 @@ namespace App\Models;
 
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Cashier\Billable;
 use Laravel\Sanctum\HasApiTokens;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements MustVerifyEmail
@@ -173,8 +173,9 @@ class User extends Authenticatable implements MustVerifyEmail
 
         // 2. Lógica de Auto-Sanación: Si el partner existe pero no tiene nivel asignado
         if (empty($profile->org_partner_tier_id)) {
-            // Buscamos el nivel inicial (el que empieza en 0 o el más bajo)
+            // Buscamos el nivel inicial filtrando estrictamente por el tipo de vendedor (Interno o Externo)
             $defaultTier = \App\Models\OrgPartnerTier::where('is_active', true)
+                ->where('org_seller_type_id', $profile->org_seller_type_id) // 👈 VALIDACIÓN APLICADA
                 ->orderBy('min_sales_volume', 'asc')
                 ->first();
 

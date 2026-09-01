@@ -401,7 +401,7 @@ Route::prefix('v1')->group(function () {
                 // Listar todas las solicitudes (puedes filtrar por ?status=pending)
                 Route::get('/partners', [\App\Http\Controllers\Api\OrgPartnerAdminController::class, 'index']);
 
-                // Ver detalle de una solicitud específica
+Route::post('/partners/internal', [\App\Http\Controllers\Api\OrgPartnerAdminController::class, 'storeInternal']);                // Ver detalle de una solicitud específica
                 Route::get('/partners/{partnerId}', [\App\Http\Controllers\Api\OrgPartnerAdminController::class, 'show']);
 
                 // Aprobar o rechazar

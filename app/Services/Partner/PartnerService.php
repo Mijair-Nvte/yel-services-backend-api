@@ -4,6 +4,8 @@ namespace App\Services\Partner;
 
 use App\Models\OrgCompany;
 use App\Models\OrgCompanyPartner;
+use App\Models\OrgPartnerTier;
+use App\Models\OrgSellerType;
 use App\Models\User;
 use Exception;
 use Illuminate\Support\Facades\DB;
@@ -13,27 +15,56 @@ class PartnerService
 {
     /**
      * Inscribe a un usuario en el programa de Partners (Auto-Aprobado).
-     * Si ya existe, verifica que esté aprobado y tenga código generado (Read-Repair).
+     * Si ya existe, verifica que esté aprobado, tenga código generado y un tipo de vendedor asignado.
+     *
+     * @param  string  $sellerTypeSlug  Por defecto 'external' para afiliados que se registran solos.
      */
-    public function joinProgram(User $user, OrgCompany $company): OrgCompanyPartner
+    public function joinProgram(User $user, OrgCompany $company, $sellerTypeConfig = 'external'): OrgCompanyPartner
     {
         $partner = OrgCompanyPartner::where('org_company_id', $company->id)
             ->where('user_id', $user->id)
             ->first();
 
-        // 1. Si NO existe, lo creamos directamente aprobado y con código
+        $sellerTypeId = null;
+        $defaultTierId = null;
+
+        // Soportar tanto llamada por string (afiliados) como por array (vendedores internos desde admin)
+        if (is_array($sellerTypeConfig)) {
+            $sellerTypeId = $sellerTypeConfig['seller_type_id'] ?? null;
+            $defaultTierId = $sellerTypeConfig['partner_tier_id'] ?? null;
+        } else {
+            // 1. Buscar tipo de vendedor por slug asegurando el scope de la compañía
+            $sellerType = OrgSellerType::where('org_company_id', $company->id)
+                ->where('slug', $sellerTypeConfig)
+                ->first();
+
+            $sellerTypeId = $sellerType ? $sellerType->id : null;
+
+            // 2. Buscar el nivel por defecto filtrado por compañía (y opcionalmente por tipo)
+            $defaultTier = OrgPartnerTier::where('org_company_id', $company->id)
+                ->when($sellerTypeId, function ($query, $sellerTypeId) {
+                    return $query->where('org_seller_type_id', $sellerTypeId);
+                })
+                ->orderBy('id', 'asc')
+                ->first();
+
+            $defaultTierId = $defaultTier ? $defaultTier->id : null;
+        }
+
+        // 3. Si NO existe el partner, lo creamos
         if (! $partner) {
-            return DB::transaction(function () use ($user, $company) {
+            return DB::transaction(function () use ($user, $company, $sellerTypeId, $defaultTierId) {
                 $newPartner = OrgCompanyPartner::create([
                     'org_company_id' => $company->id,
                     'user_id' => $user->id,
+                    'org_seller_type_id' => $sellerTypeId,
+                    'org_partner_tier_id' => $defaultTierId,
                     'referral_code' => $this->generateUniqueReferralCode($user),
                     'status' => 'approved',
                     'tax_form_type' => null,
-                    'tax_form_data' => [], // Delegado a GoHighLevel
+                    'tax_form_data' => [],
                 ]);
 
-                // Asegurar que tenga el rol
                 setPermissionsTeamId($company->id);
                 $user->assignRole('partner');
 
@@ -41,7 +72,7 @@ class PartnerService
             });
         }
 
-        // 2. Si YA EXISTE, nos aseguramos de que no esté atascado en "pending" o sin código
+        // 4. Si YA EXISTE, aplicamos Read-Repair
         $needsUpdate = false;
 
         if ($partner->status === 'pending') {
@@ -51,6 +82,16 @@ class PartnerService
 
         if (empty($partner->referral_code)) {
             $partner->referral_code = $this->generateUniqueReferralCode($user);
+            $needsUpdate = true;
+        }
+
+        if (empty($partner->org_seller_type_id) && $sellerTypeId) {
+            $partner->org_seller_type_id = $sellerTypeId;
+            $needsUpdate = true;
+        }
+
+        if (empty($partner->org_partner_tier_id) && $defaultTierId) {
+            $partner->org_partner_tier_id = $defaultTierId;
             $needsUpdate = true;
         }
 

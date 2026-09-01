@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\AuthorizesWorkspace;
 use App\Http\Controllers\Controller;
 use App\Models\OrgCompany;
 use App\Models\OrgCompanyPartner;
+use App\Models\User;
 use App\Services\Partner\PartnerService;
 use Illuminate\Http\Request;
 
@@ -125,6 +126,76 @@ class OrgPartnerAdminController extends Controller
                 'success' => false,
                 'message' => $e->getMessage(),
             ], 400);
+        }
+    }
+
+    /**
+     * ➕ Asignar un usuario existente como Vendedor Interno de la compañía
+     */
+    /**
+     * ➕ Asignar un usuario existente como Vendedor Interno de la compañía
+     */
+    public function storeInternal(Request $request, string $uid)
+    {
+        $validated = $request->validate([
+            'user_id' => ['required', 'exists:users,id'],
+        ]);
+
+        try {
+            $company = OrgCompany::where('uid', $uid)->firstOrFail();
+            $this->authorizeWorkspace($company);
+
+            $user = User::findOrFail($validated['user_id']);
+
+            $exists = OrgCompanyPartner::where('org_company_id', $company->id)
+                ->where('user_id', $user->id)
+                ->exists();
+
+            if ($exists) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Este usuario ya está registrado en el programa de partners de esta compañía.',
+                ], 422);
+            }
+
+            // 1. Buscar el tipo de vendedor interno asegurando pertenencia a la compañía
+            $sellerType = \App\Models\OrgSellerType::where('org_company_id', $company->id)
+                ->where(function ($query) {
+                    $query->where('slug', 'internal')
+                        ->orWhere('name', 'Interno');
+                })
+                ->first();
+
+            $sellerTypeId = $sellerType ? $sellerType->id : null;
+
+            // 2. Buscar el tier inicial filtrando por compañía y tipo de vendedor
+            $initialTier = \App\Models\OrgPartnerTier::where('org_company_id', $company->id)
+                ->when($sellerTypeId, function ($query, $sellerTypeId) {
+                    return $query->where('org_seller_type_id', $sellerTypeId);
+                })
+                ->orderBy('min_sales_volume', 'asc')
+                ->first();
+
+            // 3. Enviar el arreglo al servicio
+            $internalPartner = $this->partnerService->joinProgram($user, $company, [
+                'seller_type_id' => $sellerTypeId,
+                'partner_tier_id' => $initialTier ? $initialTier->id : null,
+                'type' => 'internal',
+            ]);
+
+            $internalPartner->load('user:id,name,email');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Vendedor interno asignado exitosamente y código generado.',
+                'data' => $internalPartner,
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al asignar el vendedor interno: '.$e->getMessage(),
+            ], 500);
         }
     }
 }

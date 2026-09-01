@@ -13,6 +13,7 @@ class OrgCompanyPartner extends Model
     protected $fillable = [
         'org_company_id',
         'user_id',
+        'org_seller_type_id',
         'referral_code',
         'tax_form_type',
         'tax_form_data',
@@ -52,5 +53,9 @@ class OrgCompanyPartner extends Model
     {
         return $this->belongsTo(OrgPartnerTier::class, 'org_partner_tier_id');
     }
-    
+
+    public function sellerType()
+    {
+        return $this->belongsTo(OrgSellerType::class, 'org_seller_type_id');
+    }
 }

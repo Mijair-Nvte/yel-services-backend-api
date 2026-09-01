@@ -86,6 +86,7 @@ class SaleProcessingService
 
                         $newTier = \App\Models\OrgPartnerTier::where('org_company_id', $companyId)
                             ->where('is_active', true)
+                            ->where('org_seller_type_id', $partner->org_seller_type_id)
                             ->where('min_sales_volume', '<=', $newLifetimeVolume)
                             ->orderBy('min_sales_volume', 'desc')
                             ->first();

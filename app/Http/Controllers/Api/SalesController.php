@@ -27,10 +27,21 @@ class SalesController extends Controller
             $this->authorizeWorkspace($company);
             $this->authorize('view_sales');
 
-            $sales = OrgSale::with(['seller:id,name,email', 'processor:id,name,email', 'customer'])
+            $sales = OrgSale::with(['seller:id,name,email', 'seller.partnerProfile.sellerType', 'processor:id,name,email', 'customer'])
                 ->where('org_company_id', $company->id)
                 ->orderBy('created_at', 'desc')
                 ->get();
+
+            $sales->transform(function ($sale) {
+                // Si la venta tiene un vendedor asignado, extraemos el tipo
+                if ($sale->seller && $sale->seller->partnerProfile && $sale->seller->partnerProfile->sellerType) {
+                    // Le inyectamos una propiedad "tipo" directamente al objeto seller para fácil acceso en React
+                    $sale->seller->type_name = $sale->seller->partnerProfile->sellerType->name;
+                    $sale->seller->type_id = $sale->seller->partnerProfile->sellerType->id;
+                }
+
+                return $sale;
+            });
 
             return response()->json(['data' => $sales], 200);
 
@@ -186,7 +197,7 @@ class SalesController extends Controller
                 ]);
             }
 
-           // Recargamos relaciones para enviar al frontend
+            // Recargamos relaciones para enviar al frontend
             $sale->load(['seller:id,name,email', 'processor:id,name,email', 'customer']);
 
             return response()->json([
