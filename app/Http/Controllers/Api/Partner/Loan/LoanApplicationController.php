@@ -71,6 +71,8 @@ class LoanApplicationController extends Controller
         // Creamos la solicitud de préstamo de forma directa
         $application = OrgLoanApplication::create($validated);
 
+        $application->load(['customer', 'user']);
+        
         //Disparamos la automatización por el evento "created"
         $this->triggerAutomations($company, 'loans', 'created', $application);
 

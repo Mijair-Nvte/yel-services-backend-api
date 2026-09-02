@@ -41,6 +41,7 @@ use App\Http\Controllers\Api\Partner\PartnerSaleController;
 use App\Http\Controllers\Api\SalesController;
 use App\Http\Controllers\Api\Store\PublicOrgServiceController;
 use App\Http\Controllers\Api\Store\StripeCheckoutController;
+use App\Http\Controllers\Api\Webhooks\GoHighLevel\LoanWebhookController;
 use App\Http\Controllers\Api\Yelpro\OrgEventYelProController;
 use App\Http\Controllers\Api\Yelpro\YelproFolderController;
 use App\Http\Controllers\WebhookController;
@@ -51,6 +52,14 @@ Route::prefix('v1')->group(function () {
     // 🔗 Webhooks
     Route::post('/webhooks/ghl', [WebhookController::class, 'handleGHL']);
     Route::post('/webhooks/ghl/service-form', [WebhookController::class, 'handleServiceForm']);
+
+    Route::prefix('webhooks/ghl/status-updates')->group(function () {
+        Route::post('/loans', [LoanWebhookController::class, 'updateStatus']);
+
+        // Aquí agregarás los demás en el futuro de forma súper limpia:
+        // Route::post('/insurances', [InsuranceWebhookController::class, 'updateStatus']);
+        // Route::post('/services', [ServiceWebhookController::class, 'updateStatus']);
+    });
 
     // 🔓 Rutas Públicas
     Route::post('/register', RegisterController::class);
@@ -401,7 +410,7 @@ Route::prefix('v1')->group(function () {
                 // Listar todas las solicitudes (puedes filtrar por ?status=pending)
                 Route::get('/partners', [\App\Http\Controllers\Api\OrgPartnerAdminController::class, 'index']);
 
-Route::post('/partners/internal', [\App\Http\Controllers\Api\OrgPartnerAdminController::class, 'storeInternal']);                // Ver detalle de una solicitud específica
+                Route::post('/partners/internal', [\App\Http\Controllers\Api\OrgPartnerAdminController::class, 'storeInternal']);                // Ver detalle de una solicitud específica
                 Route::get('/partners/{partnerId}', [\App\Http\Controllers\Api\OrgPartnerAdminController::class, 'show']);
 
                 // Aprobar o rechazar
