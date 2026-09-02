@@ -69,6 +69,8 @@ class InsuranceApplicationController extends Controller
 
             $application = OrgInsuranceApplication::create($data);
 
+             $application->load(['customer', 'user']);
+             
             DB::commit();
 
             $this->triggerAutomations($company, 'insurances', 'created', $application);

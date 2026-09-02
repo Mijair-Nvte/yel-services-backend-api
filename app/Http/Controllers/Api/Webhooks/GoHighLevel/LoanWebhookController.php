@@ -4,16 +4,16 @@ namespace App\Http\Controllers\Api\Webhooks\GoHighLevel;
 
 use App\Http\Controllers\Controller;
 use App\Models\OrgLoanApplication;
+use App\Services\GhlStatusSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-
 
 class LoanWebhookController extends Controller
 {
     public function updateStatus(Request $request)
     {
-        Log::info('=== INICIO GHL WEBHOOK [LOANS STATUS] ===');
-        Log::info('Payload recibido:', $request->all());
+        //Log::info('=== INICIO GHL WEBHOOK [LOANS STATUS] ===');
+        //Log::info('Payload recibido:', $request->all());
 
         try {
             $uid = $request->input('customData.loan_uid');
@@ -26,35 +26,13 @@ class LoanWebhookController extends Controller
 
             $loan = OrgLoanApplication::where('uid', $uid)->firstOrFail();
 
-            $newStatus = null;
-            switch ($ghlStatus) {
-                case 'won':
-                    $newStatus = 'Won';
-                    break;
-                case 'lost':
-                    $newStatus = 'Lost';
-                    break;
-                case 'abandoned':
-                    $newStatus = 'Abandon'; // Coincide exactamente con el ENUM de la BD
-                    break;
-                case 'open':
-                    $newStatus = 'Open';
-                    break;
-            }
+            // Usamos nuestro servicio modular y escalable
+            GhlStatusSyncService::sync($loan, $ghlStatus, 'loans');
 
-            if ($newStatus && $loan->status !== $newStatus) {
-                // Actualiza y dispara automáticamente el Observer limpio
-                $loan->update([
-                    'status' => $newStatus,
-                ]);
-                Log::info("Éxito: Préstamo {$uid} actualizado a estatus: {$newStatus}");
-            }
-
-            return response()->json(['success' => true, 'message' => 'Webhook procesado correctamente'], 200);
+            return response()->json(['success' => true, 'message' => 'Estatus sincronizado correctamente'], 200);
 
         } catch (\Exception $e) {
             Log::error('Error en LoanWebhookController: ' . $e->getMessage());
-
             return response()->json(['error' => 'Error interno: ' . $e->getMessage()], 500);
         }
     }

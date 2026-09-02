@@ -5,11 +5,9 @@ namespace App\Providers;
 use App\Models\Document;
 use App\Models\OrgCompanyNotice;
 use App\Models\OrgEvent;
-use App\Models\OrgLoanApplication;
 use App\Observers\DocumentObserver;
 use App\Observers\OrgCompanyNoticeObserver;
 use App\Observers\OrgEventObserver;
-use App\Observers\OrgLoanApplicationObserver;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -51,7 +49,7 @@ class AppServiceProvider extends ServiceProvider
                     ->exists();
 
                 if ($isOwner) {
-                    return true; 
+                    return true;
                 }
             }
         });
@@ -59,6 +57,6 @@ class AppServiceProvider extends ServiceProvider
         OrgEvent::observe(OrgEventObserver::class);
         Document::observe(DocumentObserver::class);
         OrgCompanyNotice::observe(OrgCompanyNoticeObserver::class);
-        OrgLoanApplication::observe(OrgLoanApplicationObserver::class);
+
     }
 }

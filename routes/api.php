@@ -41,6 +41,7 @@ use App\Http\Controllers\Api\Partner\PartnerSaleController;
 use App\Http\Controllers\Api\SalesController;
 use App\Http\Controllers\Api\Store\PublicOrgServiceController;
 use App\Http\Controllers\Api\Store\StripeCheckoutController;
+use App\Http\Controllers\Api\Webhooks\GoHighLevel\InsuranceWebhookController;
 use App\Http\Controllers\Api\Webhooks\GoHighLevel\LoanWebhookController;
 use App\Http\Controllers\Api\Yelpro\OrgEventYelProController;
 use App\Http\Controllers\Api\Yelpro\YelproFolderController;
@@ -55,9 +56,7 @@ Route::prefix('v1')->group(function () {
 
     Route::prefix('webhooks/ghl/status-updates')->group(function () {
         Route::post('/loans', [LoanWebhookController::class, 'updateStatus']);
-
-        // Aquí agregarás los demás en el futuro de forma súper limpia:
-        // Route::post('/insurances', [InsuranceWebhookController::class, 'updateStatus']);
+        Route::post('/insurances', [InsuranceWebhookController::class, 'updateStatus']);
         // Route::post('/services', [ServiceWebhookController::class, 'updateStatus']);
     });
 
