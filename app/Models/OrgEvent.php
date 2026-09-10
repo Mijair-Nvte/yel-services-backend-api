@@ -67,5 +67,14 @@ class OrgEvent extends Model
         return $this->belongsToMany(User::class, 'org_event_attendees')
                     ->withTimestamps();
     }
+
+
+    public function ticketTypes()
+    {
+        return $this->belongsToMany(OrgTicketType::class, 'org_event_ticket_types', 'org_event_id', 'org_ticket_type_id')
+                    ->using(OrgEventTicketType::class) // Le decimos que use nuestro modelo Pivot
+                    ->withPivot('id', 'capacity', 'price', 'metadata')
+                    ->withTimestamps();
+    }
     
 }

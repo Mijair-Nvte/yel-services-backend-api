@@ -22,7 +22,7 @@ class AffiliateMeController extends Controller
         // 4. Mandamos llamar a tu accessor. Esto devolverá el nivel o null si no tiene propiedades
         $investorTier = $user->current_investor_tier;
         $partnerTier = $user->current_partner_tier;
-
+      $loanTierData = $user->current_loan_tier;
         return response()->json([
             'user' => [
                 'id' => $user->id,
@@ -43,6 +43,17 @@ class AffiliateMeController extends Controller
                     'name' => $partnerTier->name,
                     'color' => $partnerTier->color_theme ?? 'gray',
                     'commission_percentage' => (float) $partnerTier->commission_percentage,
+                ] : null,
+
+             'loan_tier' => $loanTierData ? [
+                    'name' => $loanTierData['tier']->name,
+                    'color' => $loanTierData['tier']->color_theme ?? 'emerald',
+                    'small_loan_fee' => (float) $loanTierData['tier']->small_loan_fixed_fee,
+                    'large_loan_cap' => (float) $loanTierData['tier']->large_loan_cap,
+                    'medium_loan_percentage' => (float) $loanTierData['tier']->medium_loan_percentage,
+                    'current_volume' => $loanTierData['current_month_volume'],
+                    'next_tier_name' => $loanTierData['next_tier_name'],
+                    'next_tier_volume' => $loanTierData['next_tier_min_volume'], // Mapeado correctamente con el accessor
                 ] : null,
             ],
         ]);

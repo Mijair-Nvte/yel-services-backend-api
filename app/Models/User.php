@@ -204,4 +204,61 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->partnerProfile ? $this->partnerProfile->lifetime_sales_volume : 0.00;
     }
+
+    // ==========================================
+    // SECCIÓN: YEL PRO - LOANS (PRÉSTAMOS)
+    // ==========================================
+
+    // Relación para traer las solicitudes de préstamo que ha hecho este usuario
+    public function loanApplications()
+    {
+        return $this->hasMany(OrgLoanApplication::class, 'user_id');
+    }
+
+    // Accessor para calcular el nivel de préstamos del MES ACTUAL
+  public function getCurrentLoanTierAttribute()
+    {
+        $companyUserPivot = $this->companies()->first();
+        $companyId = $companyUserPivot ? $companyUserPivot->org_company_id : 1;
+
+        $startOfMonth = now()->startOfMonth();
+        $endOfMonth = now()->endOfMonth();
+
+        // 1. Sumar el volumen de los préstamos 'Won' de ESTE MES
+        $currentMonthVolume = $this->loanApplications()
+            ->where('org_company_id', $companyId)
+            ->where('status', 'Won')
+            ->whereBetween('won_at', [$startOfMonth, $endOfMonth])
+            ->sum('estimated_amount');
+
+        // 2. Buscar el nivel actual
+        $currentTier = OrgLoanTier::where('org_company_id', $companyId)
+            ->where('is_active', true)
+            ->where('min_monthly_volume', '<=', $currentMonthVolume)
+            ->where(function ($query) use ($currentMonthVolume) {
+                $query->whereNull('max_monthly_volume')
+                      ->orWhere('max_monthly_volume', '>=', $currentMonthVolume);
+            })
+            ->first();
+
+        // Si no hay nivel, devolvemos null
+        if (!$currentTier) {
+            return null;
+        }
+
+        // 3. Buscar el siguiente nivel (para la barra de progreso)
+        $nextTier = OrgLoanTier::where('org_company_id', $companyId)
+            ->where('is_active', true)
+            ->where('min_monthly_volume', '>', $currentMonthVolume)
+            ->orderBy('min_monthly_volume', 'asc')
+            ->first();
+
+        // 4. Retornar un objeto enriquecido con los datos del progreso
+        return [
+            'tier' => $currentTier,
+            'current_month_volume' => (float) $currentMonthVolume,
+            'next_tier_name' => $nextTier ? $nextTier->name : null,
+            'next_tier_min_volume' => $nextTier ? (float) $nextTier->min_monthly_volume : null,
+        ];
+    }
 }

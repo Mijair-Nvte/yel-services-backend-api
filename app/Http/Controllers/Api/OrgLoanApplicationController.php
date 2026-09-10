@@ -11,6 +11,7 @@ use App\Traits\TriggersModuleAutomations;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use App\Services\Loan\LoanCommissionService;
 
 class OrgLoanApplicationController extends Controller
 {
@@ -67,7 +68,7 @@ class OrgLoanApplicationController extends Controller
     /**
      * ✏️ Actualizar una solicitud (Estatus, Comisiones, etc.)
      */
-    public function update(Request $request, string $uid, string $applicationUid)
+public function update(Request $request, string $uid, string $applicationUid, LoanCommissionService $commissionService)
     {
         try {
             $company = OrgCompany::where('uid', $uid)->firstOrFail();
@@ -96,11 +97,18 @@ class OrgLoanApplicationController extends Controller
 
             $this->triggerAutomations($company, 'loans', 'updated', $application);
 
-            // 👈 4. REGLA DE NEGOCIO: Notificar al Partner si el estatus cambió
+            // Si el estatus cambió a 'Won', calculamos comisiones usando el Service
+            if ($oldStatus !== 'Won' && $application->status === 'Won') {
+                $commissionService->recalculateForApplication($application);
+                
+                // Recargamos el modelo para reflejar los cambios en la respuesta
+                $application->refresh(); 
+            }
+
+            //  4. REGLA DE NEGOCIO: Notificar al Partner si el estatus cambió
             if ($request->has('status') && $oldStatus !== $request->status) {
                 // Si la solicitud tiene un partner asignado (user) y su correo existe
                 if ($application->user && $application->user->email) {
-
                     // Usamos ->queue() para que se envíe asincrónicamente y no demore la petición
                     Mail::to($application->user->email)->queue(new LoanStatusUpdatedMail($application, $company));
                 }
