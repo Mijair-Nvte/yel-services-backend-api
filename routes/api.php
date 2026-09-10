@@ -170,6 +170,7 @@ Route::prefix('v1')->group(function () {
                 Route::middleware('can:manage_sales')->group(function () {
                     Route::put('/sales/{saleId}/commission', [SalesController::class, 'updateCommission']);
                     Route::post('/sales/export-pdf', [SalesController::class, 'exportPdf']);
+                    Route::post('/sales/export-excel', [SalesController::class, 'exportExcel']);
                     Route::put('/sales/{saleId}', [SalesController::class, 'update']);
                     Route::delete('/sales/{saleId}', [SalesController::class, 'destroy']);
                 });

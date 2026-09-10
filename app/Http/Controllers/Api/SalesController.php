@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exports\SalesExport;
 use App\Http\Controllers\Concerns\AuthorizesWorkspace;
 use App\Http\Controllers\Controller;
 use App\Models\OrgCompany;
@@ -10,6 +11,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
 
 class SalesController extends Controller
 {
@@ -145,6 +147,38 @@ class SalesController extends Controller
 
         } catch (\Exception $e) {
             return response()->json(['message' => 'Error al generar el PDF.'], 500);
+        }
+    }
+
+    /**
+     * Exportar las ventas filtradas a Excel
+     */
+    public function exportExcel(Request $request, string $uid)
+    {
+        try {
+            $company = OrgCompany::where('uid', $uid)->firstOrFail();
+            $this->authorizeWorkspace($company);
+            $this->authorize('manage_sales');
+
+            $request->validate([
+                'sale_ids' => 'required|array',
+                'sale_ids.*' => 'integer',
+            ]);
+
+            // Misma consulta del PDF (ya incluye "customer" que trae el email y phone)
+            $sales = OrgSale::with(['seller:id,name,email', 'customer'])
+                ->where('org_company_id', $company->id)
+                ->whereIn('id', $request->sale_ids)
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            // Descargamos usando nuestra clase exportadora
+            return Excel::download(new SalesExport($sales), 'reporte_ventas.xlsx');
+
+        } catch (\Exception $e) {
+            Log::error('Error al generar Excel', ['error' => $e->getMessage()]);
+
+            return response()->json(['message' => 'Error al generar el Excel.'], 500);
         }
     }
 
