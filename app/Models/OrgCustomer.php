@@ -15,6 +15,7 @@ class OrgCustomer extends Model
         'uid',
         'org_company_id',
         'user_id',
+        'contact_id',
         'first_name',
         'last_name',
         'email',

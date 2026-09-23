@@ -11,7 +11,7 @@ class AffiliateMeController extends Controller
     {
         // 1. Cargamos el usuario con su perfil y la relación 'companies'
         // IMPORTANTE: También cargamos la relación anidada 'company' que está dentro de OrgCompanyUser
-        $user = $request->user()->load(['profile', 'companies.company', 'partnerProfile.tier']);
+        $user = $request->user()->load(['profile', 'companies.company', 'partnerProfile.tier','partnerProfile.sellerType']);
 
         // 2. Obtenemos el primer registro de la tabla intermedia
         $pivot = $user->companies->first();
@@ -31,6 +31,9 @@ class AffiliateMeController extends Controller
                 'avatar' => $user->profile->avatar_url ?? null,
                 'workspace_uid' => $workspaceUid,
                 'role' => 'partner',
+                'seller_type' => $user->partnerProfile && $user->partnerProfile->sellerType 
+                    ? $user->partnerProfile->sellerType->slug 
+                    : null,
                 // --- Datos exclusivos para Yel Investor ---
                 'investor_tier' => $investorTier ? [
                     'name' => $investorTier->name,

@@ -49,6 +49,7 @@ class LoanApplicationController extends Controller
             'loan_type' => 'required|string|max:100',
             'estimated_amount' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string',
+            'assigned_to' => 'required|integer|exists:users,id',
         ]);
 
         // 3. Utilizamos el trait para buscar o crear al cliente centralizado

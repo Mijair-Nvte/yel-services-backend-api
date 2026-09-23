@@ -34,11 +34,12 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
-    
+
     'ghl' => [
         'inbound_webhook_url' => env('GHL_INBOUND_WEBHOOK_URL'),
         'inbound_webhook_referrals_investor_url' => env('GHL_INBOUND_WEBHOOK_REFERRALS_INVESTOR_URL'),
+        'token' => env('GHL_API_TOKEN'),
+        'location_id' => env('GHL_LOCATION_ID'),
     ],
-
 
 ];

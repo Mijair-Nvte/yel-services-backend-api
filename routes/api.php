@@ -12,6 +12,8 @@ use App\Http\Controllers\Api\ChatbotController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DocumentController;
+use App\Http\Controllers\Api\Events\EventCatalogController;
+use App\Http\Controllers\Api\Events\EventRegistrationController;
 use App\Http\Controllers\Api\FolderController;
 use App\Http\Controllers\Api\LoanApplication\LoanApplicationController;
 use App\Http\Controllers\Api\NoticeLevelController;
@@ -41,10 +43,13 @@ use App\Http\Controllers\Api\Partner\PartnerSaleController;
 use App\Http\Controllers\Api\SalesController;
 use App\Http\Controllers\Api\Store\PublicOrgServiceController;
 use App\Http\Controllers\Api\Store\StripeCheckoutController;
+use App\Http\Controllers\Api\Webhooks\GoHighLevel\ContactWebhookController;
+use App\Http\Controllers\Api\Webhooks\GoHighLevel\Events\MetaAdsEventWebhookController;
 use App\Http\Controllers\Api\Webhooks\GoHighLevel\InsuranceWebhookController;
 use App\Http\Controllers\Api\Webhooks\GoHighLevel\LoanWebhookController;
 use App\Http\Controllers\Api\Yelpro\OrgEventYelProController;
 use App\Http\Controllers\Api\Yelpro\YelproFolderController;
+use App\Http\Controllers\GhlSyncController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -53,6 +58,16 @@ Route::prefix('v1')->group(function () {
     // 🔗 Webhooks
     Route::post('/webhooks/ghl', [WebhookController::class, 'handleGHL']);
     Route::post('/webhooks/ghl/service-form', [WebhookController::class, 'handleServiceForm']);
+
+    Route::prefix('webhooks/ghl')->group(function () {
+
+        Route::post('/contacts', [ContactWebhookController::class, 'handleContact']);
+
+        // 🎫 Webhooks de Eventos (Meta Ads)
+        Route::prefix('events')->group(function () {
+            Route::post('/meta-ads', [MetaAdsEventWebhookController::class, 'handleRegistration']);
+        });
+    });
 
     Route::prefix('webhooks/ghl/status-updates')->group(function () {
         Route::post('/loans', [LoanWebhookController::class, 'updateStatus']);
@@ -191,11 +206,15 @@ Route::prefix('v1')->group(function () {
 
             // Agrupamos bajo el prefijo /modules para que las URLs queden:
             // GET /api/v1/org-companies/{uid}/modules/{moduleName}/settings
-            // PUT /api/v1/org-companies/{uid}/modules/{moduleName}/settings
             Route::prefix('modules/{moduleName}')->group(function () {
                 Route::get('/settings', [\App\Http\Controllers\Api\OrgModuleSettingController::class, 'show']);
                 Route::put('/settings', [\App\Http\Controllers\Api\OrgModuleSettingController::class, 'update']);
+
             });
+            // ==========================================
+            // 📦 SYNC GHL CONTACTOSh
+            // ==========================================
+            Route::post('/ghl/sync-historical', [GhlSyncController::class, 'startSync']);
 
             // ==========================================
             // 📦 SERVICIOS / STRIPE PRODUCTS
@@ -218,6 +237,7 @@ Route::prefix('v1')->group(function () {
                 Route::middleware('can:view_calendar')->group(function () {
                     Route::get('/events', [OrgEventController::class, 'index']);
                     Route::get('/events/{eventUid}', [OrgEventController::class, 'show']);
+                    Route::get('/events/{eventUid}/registrations', [OrgEventController::class, 'registrations']);
                 });
 
                 // Gestionar Calendario
@@ -636,6 +656,19 @@ Route::prefix('v1')->group(function () {
             });
 
         });
+    });
+
+    // ========================================================================
+    // 🎫 TICKETING Y EVENTOS (YEL Tickets Web)
+    // ========================================================================
+    Route::prefix('public/org-companies/{companyUid}/events')->group(function () {
+
+        // Catálogo de eventos
+        Route::get('/', [EventCatalogController::class, 'index']);
+        Route::get('/{slug}', [EventCatalogController::class, 'show']);
+        Route::post('/{slug}/register', [EventRegistrationController::class, 'store']);
+        // Route::post('/{eventUid}/checkout', [\App\Http\Controllers\Api\Events\EventCheckoutController::class, 'process']);
+
     });
 
 });
