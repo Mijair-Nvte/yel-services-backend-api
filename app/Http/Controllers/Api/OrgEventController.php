@@ -50,7 +50,7 @@ class OrgEventController extends Controller
                 ->withCount(['registrations as unattended_count' => function ($query) {
                     $query->where('attended', false);
                 }]) // Total de los que no asistieron
-                ->orderBy('starts_at')
+              ->orderBy('created_at', 'desc')
                 ->get();
 
             return response()->json($events);
