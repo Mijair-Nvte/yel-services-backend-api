@@ -457,7 +457,7 @@ Route::prefix('v1')->group(function () {
                 Route::delete('/service-orders/{orderUid}', [\App\Http\Controllers\Api\OrgServiceOrderController::class, 'destroy']);
             });
 
-            // ==========================================
+       // ==========================================
             // 👥 CLIENTES / CUSTOMERS
             // ==========================================
             Route::group([], function () {
@@ -465,6 +465,12 @@ Route::prefix('v1')->group(function () {
                 Route::middleware('can:view_customers')->group(function () {
                     Route::get('/customers', [\App\Http\Controllers\Api\OrgCustomerController::class, 'index']);
                     Route::get('/customers/{customerUid}', [\App\Http\Controllers\Api\OrgCustomerController::class, 'show']);
+                    
+                    // 👉 Asegúrate de incluir "/customers/" al inicio de estas rutas
+                    Route::get('/customers/{customerUid}/loans', [\App\Http\Controllers\Api\OrgCustomerController::class, 'getLoans']);
+                    Route::get('/customers/{customerUid}/insurances', [\App\Http\Controllers\Api\OrgCustomerController::class, 'getInsurances']);
+                    Route::get('/customers/{customerUid}/events', [\App\Http\Controllers\Api\OrgCustomerController::class, 'getEvents']);
+                    Route::get('/customers/{customerUid}/service-orders', [\App\Http\Controllers\Api\OrgCustomerController::class, 'getServiceOrders']);
                 });
 
                 // Gestionar Clientes

@@ -72,4 +72,12 @@ class OrgCustomer extends Model
     {
         return $this->hasMany(OrgInsuranceApplication::class, 'org_customer_id');
     }
+
+    /**
+     * Registros a eventos del cliente
+     */
+    public function eventRegistrations()
+    {
+        return $this->hasMany(OrgEventRegistration::class, 'org_customer_id');
+    }
 }
