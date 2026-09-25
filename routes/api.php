@@ -457,6 +457,24 @@ Route::prefix('v1')->group(function () {
                 Route::delete('/service-orders/{orderUid}', [\App\Http\Controllers\Api\OrgServiceOrderController::class, 'destroy']);
             });
 
+            // ==========================================
+            // 👥 CLIENTES / CUSTOMERS
+            // ==========================================
+            Route::group([], function () {
+                // Ver Clientes
+                Route::middleware('can:view_customers')->group(function () {
+                    Route::get('/customers', [\App\Http\Controllers\Api\OrgCustomerController::class, 'index']);
+                    Route::get('/customers/{customerUid}', [\App\Http\Controllers\Api\OrgCustomerController::class, 'show']);
+                });
+
+                // Gestionar Clientes
+                Route::middleware('can:manage_customers')->group(function () {
+                    Route::post('/customers', [\App\Http\Controllers\Api\OrgCustomerController::class, 'store']);
+                    Route::put('/customers/{customerUid}', [\App\Http\Controllers\Api\OrgCustomerController::class, 'update']);
+                    Route::delete('/customers/{customerUid}', [\App\Http\Controllers\Api\OrgCustomerController::class, 'destroy']);
+                });
+            });
+
         });
 
         // ========================================================================

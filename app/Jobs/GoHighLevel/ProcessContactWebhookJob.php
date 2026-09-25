@@ -25,78 +25,119 @@ class ProcessContactWebhookJob implements ShouldQueue
     public function handle(): void
     {
         try {
-            $email = $this->payload['email'] ?? null;
-            $phone = $this->payload['phone'] ?? null;
-            $ghlId = $this->payload['contact_id'] ?? null;
+            // 1. EL CORREO ES EL REY (Llave Primaria)
+            // GHL a veces manda 'email' y a veces 'emailLowerCase' dependiendo del tipo de webhook.
+            $email = $this->payload['email'] ?? $this->payload['emailLowerCase'] ?? null;
+            $email = $email ? strtolower(trim($email)) : null;
 
-            if (!$email && !$phone && !$ghlId) {
-                Log::warning('GHL Contact Webhook ignorado: Sin contact_id, email ni teléfono.', ['ghl_id' => $ghlId]);
+            if (!$email) {
+                Log::warning('GHL Contact Webhook ignorado: GHL no envió correo electrónico (Llave primaria obligatoria).');
                 return;
             }
 
-            // 1. Prioridad de búsqueda
-            if ($ghlId) {
-                $searchKey = ['contact_id' => $ghlId];
-            } elseif ($email) {
-                $searchKey = ['email' => $email];
-            } else {
-                $searchKey = ['phone' => $phone];
-            }
+            $phone = $this->payload['phone'] ?? null;
+            $ghlId = $this->payload['contact_id'] ?? $this->payload['id'] ?? null;
 
             // 2. Extraemos el origen
             $attribution = $this->payload['contact']['attributionSource'] ?? [];
             $source = $attribution['sessionSource'] ?? 'GHL Webhook';
             $medium = $attribution['medium'] ?? null;
 
-            // 3. Extraemos y formateamos los TAGS (En Webhook vienen como string: "tag1, tag2")
+            // 3. Extraemos y formateamos los TAGS
             $tagsRaw = $this->payload['tags'] ?? null;
             $tags = [];
             if (!empty($tagsRaw)) {
                 $tags = array_map('trim', explode(',', $tagsRaw));
             }
 
-            // 4. Extraemos los CUSTOM FIELDS dinámicamente limpiando el payload
+            // 4. Extraemos los CUSTOM FIELDS de GHL
             $standardKeys = [
-                'id', 'contact_id', 'first_name', 'last_name', 'full_name', 'email', 'phone', 
-                'tags', 'country', 'date_created', 'full_address', 'contact_type', 
+                'id', 'contact_id', 'first_name', 'last_name', 'full_name', 'email', 'emailLowerCase', 'phone', 
+                'tags', 'country', 'date_created', 'dateAdded', 'full_address', 'contact_type', 
                 'location', 'user', 'workflow', 'triggerData', 'contact', 'attributionSource', 
-                'customData', 'city', 'timezone', 'contact_source', 'type', 'status'
+                'customData', 'city', 'timezone', 'contact_source', 'type', 'status', 'customFields'
             ];
 
-            // Todo lo que NO sea una llave estándar, es un Custom Field.
-            // filter() quita automáticamente los que vengan vacíos o nulos.
-            $customFields = collect($this->payload)->except($standardKeys)->filter(function ($value) {
-                return $value !== null && $value !== '';
-            })->toArray();
+            // AQUÍ ESTÁ EL TRUCO ANTI-BASURA: Extraemos TODOS los custom fields de GHL, 
+            // incluso los que vienen vacíos (para que sobreescriban y borren a los viejos).
+            $incomingCustomFields = collect($this->payload)
+                ->except($standardKeys)
+                ->toArray();
 
-            // 5. Instanciamos el cliente
-            $customer = OrgCustomer::firstOrNew($searchKey);
+            // 5. BÚSQUEDA ESTRICTA POR CORREO
+            $companyId = 1; // Ajusta según tu lógica multi-tenant
 
-            $customer->org_company_id = 1;
-            $customer->contact_id     = $ghlId;
-            $customer->first_name     = $this->payload['first_name'] ?? $customer->first_name;
-            $customer->last_name      = $this->payload['last_name'] ?? $customer->last_name;
-            $customer->email          = $email ?? $customer->email;
-            $customer->phone          = $phone ?? $customer->phone;
+            $customer = OrgCustomer::where('org_company_id', $companyId)
+                                   ->where('email', $email)
+                                   ->first();
+
+            $isNewRecord = false;
             
-            // 6. Asignamos la metadata con la misma estructura que la Sincronización Masiva
+            if (!$customer) {
+                $customer = new OrgCustomer();
+                $customer->org_company_id = $companyId;
+                $customer->email = $email;
+                $isNewRecord = true;
+            }
+
+            // 6. ACTUALIZACIÓN DE DATOS BASE
+            // Si GHL trae un dato válido, lo usamos. Si viene vacío, conservamos el que ya tenía Laravel.
+            if ($ghlId) $customer->contact_id = $ghlId;
+            
+            if (!empty($this->payload['first_name'])) {
+                $customer->first_name = $this->payload['first_name'];
+            }
+            if (!empty($this->payload['last_name'])) {
+                $customer->last_name = $this->payload['last_name'];
+            }
+            if (!empty($phone)) {
+                $customer->phone = $phone;
+            }
+
+            // 7. FUSIÓN INTELIGENTE DE METADATA (Limpieza de Basura)
+            $existingMetadata = $customer->metadata ?? [];
+            
+            // A) Unir Tags (Los viejos + los nuevos sin repetir)
+            $mergedTags = array_unique(array_merge($existingMetadata['tags'] ?? [], $tags));
+            
+            // B) Limpiar Custom Fields
+            $existingCustomFields = $existingMetadata['custom_fields'] ?? [];
+            
+            // Fusionamos: Si GHL manda un campo vacío que Laravel tenía lleno, se volverá vacío.
+            $mergedCustomFields = array_merge($existingCustomFields, $incomingCustomFields);
+            
+            // AHORA filtramos: Eliminamos cualquier campo que haya quedado nulo o vacío.
+            $cleanCustomFields = array_filter($mergedCustomFields, function ($value) {
+                return $value !== null && $value !== '';
+            });
+
+            // C) Asignamos la metadata final
             $customer->metadata = [
-                'source'        => $source,
-                'medium'        => $medium,
-                'tags'          => $tags,
-                'custom_fields' => $customFields
+                'source'        => $existingMetadata['source'] ?? $source, // Conserva la fuente original de adquisición
+                'medium'        => $existingMetadata['medium'] ?? $medium,
+                'tags'          => array_values($mergedTags), // array_values reindexa el array
+                'custom_fields' => $cleanCustomFields // Ya no hay datos basura 🎉
             ];
 
-            // 7. Protegemos el historial de creación
-            if (!$customer->exists && !empty($this->payload['date_created'])) {
-                try {
-                    $customer->created_at = Carbon::parse($this->payload['date_created'])->setTimezone('America/Mexico_City');
-                } catch (\Exception $e) {
-                    $customer->created_at = now();
+            // 8. FECHA DE CREACIÓN (Solo si es nuevo)
+            if ($isNewRecord) {
+                $creationDate = $this->payload['date_created'] ?? $this->payload['dateAdded'] ?? null;
+                if (!empty($creationDate)) {
+                    try {
+                        $customer->created_at = Carbon::parse($creationDate)->setTimezone('America/Mexico_City');
+                    } catch (\Exception $e) {
+                        $customer->created_at = now();
+                    }
                 }
             }
 
             $customer->save();
+
+            Log::info("GHL Contact Webhook procesado exitosamente.", [
+                'customer_id' => $customer->id,
+                'is_new'      => $isNewRecord,
+                'email'       => $customer->email,
+            ]);
 
         } catch (\Exception $e) {
             Log::error('Error procesando el Job ProcessContactWebhookJob: ' . $e->getMessage());

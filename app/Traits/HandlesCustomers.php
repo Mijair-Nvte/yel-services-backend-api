@@ -29,7 +29,7 @@ trait HandlesCustomers
 
             // Si nos pasan un ghl_contact_id y el cliente no lo tenía (o cambió), lo actualizamos
             if (! empty($ghlContactId) && $customer->ghl_contact_id !== $ghlContactId) {
-                $updateData['ghl_contact_id'] = $ghlContactId;
+                $updateData['contact_id'] = $ghlContactId;
             }
 
             if (!empty($updateData)) {
@@ -50,7 +50,7 @@ trait HandlesCustomers
             'last_name'        => $lastName,
             'email'            => $email,
             'phone'            => $phone,
-            'ghl_contact_id'   => $ghlContactId,
+            'contact_id'   => $ghlContactId,
         ]);
 
         return $newCustomer->id;
