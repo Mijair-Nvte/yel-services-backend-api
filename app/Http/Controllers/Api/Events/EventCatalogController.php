@@ -54,7 +54,7 @@ class EventCatalogController extends Controller
         $company = OrgCompany::where('uid', $companyUid)->firstOrFail();
 
         $event = OrgEvent::where('org_company_id', $company->id)
-            ->where('slug', $slug) // <--- Búsqueda optimizada por slug para SEO
+            ->where('slug', $slug) 
             ->where('is_active', true)
             ->firstOrFail();
 
