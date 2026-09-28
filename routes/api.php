@@ -157,6 +157,13 @@ Route::prefix('v1')->group(function () {
             // 📊 Dashboard
             Route::get('/dashboard', [DashboardController::class, 'overview'])->middleware('can:view_dashboard');
 
+            Route::get('/reporting/contacts', [\App\Http\Controllers\Api\ReportingController::class, 'contacts'])->middleware('can:view_dashboard');
+            Route::get('/reporting/events', [\App\Http\Controllers\Api\ReportingController::class, 'events'])->middleware('can:view_dashboard');
+            Route::get('/reporting/sales', [\App\Http\Controllers\Api\ReportingController::class, 'sales'])->middleware('can:view_dashboard');
+            Route::get('/reporting/loans', [\App\Http\Controllers\Api\ReportingController::class, 'loans'])->middleware('can:view_dashboard');
+            Route::get('/reporting/insurance', [\App\Http\Controllers\Api\ReportingController::class, 'insurance'])->middleware('can:view_dashboard');
+            Route::get('/reporting/ai-insights', [\App\Http\Controllers\Api\ReportingController::class, 'generateAiInsights'])->middleware('can:view_dashboard');
+
             // 📖 Directorio Público (Solo requiere estar en la compañía) se usara para consultas directa a usuario
             Route::get('/directory', [OrgCompanyUserController::class, 'directory']);
 
@@ -457,7 +464,7 @@ Route::prefix('v1')->group(function () {
                 Route::delete('/service-orders/{orderUid}', [\App\Http\Controllers\Api\OrgServiceOrderController::class, 'destroy']);
             });
 
-       // ==========================================
+            // ==========================================
             // 👥 CLIENTES / CUSTOMERS
             // ==========================================
             Route::group([], function () {
@@ -465,7 +472,7 @@ Route::prefix('v1')->group(function () {
                 Route::middleware('can:view_customers')->group(function () {
                     Route::get('/customers', [\App\Http\Controllers\Api\OrgCustomerController::class, 'index']);
                     Route::get('/customers/{customerUid}', [\App\Http\Controllers\Api\OrgCustomerController::class, 'show']);
-                    
+
                     // 👉 Asegúrate de incluir "/customers/" al inicio de estas rutas
                     Route::get('/customers/{customerUid}/loans', [\App\Http\Controllers\Api\OrgCustomerController::class, 'getLoans']);
                     Route::get('/customers/{customerUid}/insurances', [\App\Http\Controllers\Api\OrgCustomerController::class, 'getInsurances']);

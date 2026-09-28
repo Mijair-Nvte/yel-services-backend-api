@@ -6,12 +6,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
-use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class OrgLoanApplication extends Model
 {
-    use HasFactory, SoftDeletes,LogsActivity;
+    use HasFactory, LogsActivity,SoftDeletes;
 
     /**
      * The table associated with the model.
@@ -37,15 +37,18 @@ class OrgLoanApplication extends Model
         'applicant_dob',
         'applicant_address',
         'applicant_state',
-        'loan_type',
+        'loan_purpose',
+        'loan_program',
+        'occupancy_type',
+        'is_first_time_buyer',
         'estimated_amount',
         'status',
         'won_at',
         'notes',
         'metadata',
-        'commission_amount',   
-        'commission_status',   
-        'seller_payout_date',  
+        'commission_amount',
+        'commission_status',
+        'seller_payout_date',
     ];
 
     /**
@@ -55,7 +58,9 @@ class OrgLoanApplication extends Model
      */
     protected $casts = [
         'applicant_dob' => 'date',
+        'is_first_time_buyer' => 'boolean',
         'estimated_amount' => 'decimal:2',
+        'commission_amount' => 'decimal:2',
         'metadata' => 'array',
         'seller_payout_date' => 'date',
         'won_at' => 'datetime',
@@ -83,7 +88,7 @@ class OrgLoanApplication extends Model
         // Genera el UID automáticamente al crear el registro
         static::creating(function ($model) {
             if (empty($model->uid)) {
-                $model->uid = 'loa_' . strtoupper(Str::random(16));
+                $model->uid = 'loa_'.strtoupper(Str::random(16));
             }
         });
 
@@ -91,7 +96,7 @@ class OrgLoanApplication extends Model
         static::updating(function ($model) {
             // Verificamos si el campo 'status' fue modificado en esta petición
             if ($model->isDirty('status')) {
-                
+
                 if ($model->status === 'Won') {
                     // Si cambió a Won, le ponemos la fecha y hora actual
                     $model->won_at = now();
@@ -99,7 +104,7 @@ class OrgLoanApplication extends Model
                     // Si cambió a cualquier otra cosa (Lost, Open, Abandon), reseteamos la fecha
                     $model->won_at = null;
                 }
-                
+
             }
         });
     }
@@ -131,7 +136,7 @@ class OrgLoanApplication extends Model
     {
         return $this->belongsTo(User::class, 'assigned_to');
     }
-    
+
     /**
      * Cliente centralizado de la solicitud
      */
@@ -147,8 +152,8 @@ class OrgLoanApplication extends Model
     /**
      * Scope para filtrar solo los pendientes
      */
-    public function scopePending($query)
+  public function scopeOpen($query)
     {
-        return $query->where('status', 'pending');
+        return $query->where('status', 'Open');
     }
 }
