@@ -14,9 +14,6 @@ class OrgCustomerController extends Controller
 {
     use AuthorizesRequests, AuthorizesWorkspace;
 
-    /**
-     * 📋 Listar todos los clientes de la compañía (Paginado para TanStack Table)
-     */
     public function index(Request $request, string $uid)
     {
         try {
@@ -24,14 +21,12 @@ class OrgCustomerController extends Controller
             $this->authorizeWorkspace($company);
             $this->authorize('view_customers');
 
-            // 1. Capturamos los parámetros que manda TanStack Table
             $page = $request->input('page', 1);
-            $perPage = $request->input('per_page', 15);
+            $perPage = $request->input('per_page', 100);
             $search = $request->input('search');
 
             $query = OrgCustomer::where('org_company_id', $company->id);
 
-            // 2. Filtro opcional de búsqueda si el usuario escribe en la tabla
             if (! empty($search)) {
                 $query->where(function ($q) use ($search) {
                     $q->where('first_name', 'like', "%{$search}%")
@@ -41,11 +36,17 @@ class OrgCustomerController extends Controller
                 });
             }
 
-            // 3. Paginación eficiente de Eloquent
+            // 👇 NUEVO: CLONAMOS EL QUERY PARA CONTAR LOS KPIs REALES GLOBALES
+            $kpiQuery = clone $query;
+            $newCustomers = (clone $kpiQuery)->where('created_at', '>=', now()->subDays(7))->count();
+            $withEmail = (clone $kpiQuery)->whereNotNull('email')->where('email', '!=', '')->count();
+            $withPhone = (clone $kpiQuery)->whereNotNull('phone')->where('phone', '!=', '')->count();
+
+            // 3. Paginación eficiente
             $customers = $query->orderBy('created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', $page);
 
-            // 4. Estructura limpia compatible con TanStack Table
+            // 4. Estructura con KPIs agregados al Meta
             return response()->json([
                 'data' => $customers->items(),
                 'meta' => [
@@ -53,6 +54,12 @@ class OrgCustomerController extends Controller
                     'per_page' => $customers->perPage(),
                     'total' => $customers->total(),
                     'last_page' => $customers->lastPage(),
+                    // 👇 ENVIAMOS LOS RESULTADOS EXACTOS A REACT
+                    'kpis' => [
+                        'new_7_days' => $newCustomers,
+                        'with_email' => $withEmail,
+                        'with_phone' => $withPhone,
+                    ],
                 ],
             ], 200);
 
