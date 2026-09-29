@@ -15,22 +15,49 @@ class OrgCustomerController extends Controller
     use AuthorizesRequests, AuthorizesWorkspace;
 
     /**
-     * 📋 Listar todos los clientes de la compañía
+     * 📋 Listar todos los clientes de la compañía (Paginado para TanStack Table)
      */
-    public function index(string $uid)
+    public function index(Request $request, string $uid)
     {
         try {
             $company = OrgCompany::where('uid', $uid)->firstOrFail();
             $this->authorizeWorkspace($company);
             $this->authorize('view_customers');
 
-            $customers = OrgCustomer::where('org_company_id', $company->id)
-                ->orderBy('created_at', 'desc')
-                ->get();
+            // 1. Capturamos los parámetros que manda TanStack Table
+            $page = $request->input('page', 1);
+            $perPage = $request->input('per_page', 15);
+            $search = $request->input('search');
 
-            return response()->json(['data' => $customers], 200);
-        } catch (\Exception$e) {
-            return response()->json(['message' => 'Error al listar los clientes.'], 500);
+            $query = OrgCustomer::where('org_company_id', $company->id);
+
+            // 2. Filtro opcional de búsqueda si el usuario escribe en la tabla
+            if (! empty($search)) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%");
+                });
+            }
+
+            // 3. Paginación eficiente de Eloquent
+            $customers = $query->orderBy('created_at', 'desc')
+                ->paginate($perPage, ['*'], 'page', $page);
+
+            // 4. Estructura limpia compatible con TanStack Table
+            return response()->json([
+                'data' => $customers->items(),
+                'meta' => [
+                    'current_page' => $customers->currentPage(),
+                    'per_page' => $customers->perPage(),
+                    'total' => $customers->total(),
+                    'last_page' => $customers->lastPage(),
+                ],
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al listar los clientes: '.$e->getMessage()], 500);
         }
     }
 
@@ -206,12 +233,11 @@ class OrgCustomerController extends Controller
     /**
      * Tab: Órdenes de Servicio
      */
-  public function getServiceOrders(string $uid, string $customerUid)
+    public function getServiceOrders(string $uid, string $customerUid)
     {
         try {
             $customer = $this->getValidCustomer($uid, $customerUid);
 
-         
             $orders = $customer->serviceOrders()->with(['service', 'sale'])->orderBy('created_at', 'desc')->get();
 
             return response()->json(['data' => $orders], 200);
