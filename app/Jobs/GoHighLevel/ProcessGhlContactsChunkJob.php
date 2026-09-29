@@ -3,6 +3,7 @@
 namespace App\Jobs\GoHighLevel;
 
 use App\Models\OrgCustomer;
+use App\Traits\HandlesCustomers;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -15,10 +16,9 @@ use Illuminate\Support\Facades\Log;
 
 class ProcessGhlContactsChunkJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, HandlesCustomers;
 
     protected $companyId;
-
     protected $contactsChunk;
 
     public function __construct($companyId, array $contactsChunk)
@@ -39,17 +39,35 @@ class ProcessGhlContactsChunkJob implements ShouldQueue
         foreach ($this->contactsChunk as $contact) {
             try {
                 $ghlId = $contact['id'] ?? null;
+                $ghlId = !empty($ghlId) ? trim($ghlId) : null;
 
-                // EL CORREO ES EL REY (Llave Única)
-                $email = $contact['email'] ?? $contact['emailLowerCase'] ?? null;
-                $email = $email ? strtolower(trim($email)) : null;
-
-                // Si no hay correo, lo saltamos para evitar duplicados sin identificador fiable
-                if (! $ghlId || ! $email) {
+                // Si no hay de mínimo un ID de GHL, no podemos rastrearlo de forma segura
+                if (!$ghlId) {
                     continue;
                 }
 
+                // Correo y Teléfono opcionales pero validados si existen
+                $email = $contact['email'] ?? $contact['emailLowerCase'] ?? null;
+                $email = !empty($email) ? strtolower(trim($email)) : null;
+                if ($email && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $email = null;
+                }
+
+                $phone = $contact['phone'] ?? null;
+                $phone = !empty($phone) ? trim($phone) : null;
+
+                $firstName = $contact['firstName'] ?? $contact['firstNameLowerCase'] ?? '';
+                $lastName = $contact['lastName'] ?? $contact['lastNameLowerCase'] ?? '';
+                $fullName = trim("{$firstName} {$lastName}");
+                if (empty($fullName)) {
+                    $fullName = 'Cliente GHL';
+                }
+
                 $tags = $contact['tags'] ?? [];
+                if (is_string($tags)) {
+                    $tags = array_map('trim', explode(',', $tags));
+                }
+
                 $rawCustomFields = $contact['customFields'] ?? [];
 
                 // 3. Traducimos los Custom Fields
@@ -57,7 +75,7 @@ class ProcessGhlContactsChunkJob implements ShouldQueue
                 foreach ($rawCustomFields as $cf) {
                     $fieldId = $cf['id'] ?? '';
                     $fieldValue = $cf['value'] ?? null;
-
+                    
                     $fieldName = $customFieldsMap[$fieldId] ?? $fieldId;
 
                     if (is_array($fieldValue) && count($fieldValue) === 1) {
@@ -67,80 +85,61 @@ class ProcessGhlContactsChunkJob implements ShouldQueue
                     $incomingCustomFields[$fieldName] = $fieldValue;
                 }
 
-                // 4. BÚSQUEDA Y UPSERT INTELIGENTE (Único por Compañía y Correo)
-                $customer = OrgCustomer::where('org_company_id', $this->companyId)
-                    ->where('email', $email)
-                    ->first();
+                // 4. USAMOS EL TRAIT: Búsqueda unificada por contact_id, email o teléfono
+                $customerId = $this->findOrCreateCustomer($this->companyId, $fullName, $email, $phone, $ghlId);
+                $customer = OrgCustomer::find($customerId);
 
-                $isNewRecord = false;
-                if (! $customer) {
-                    $customer = new OrgCustomer;
-                    $customer->org_company_id = $this->companyId;
-                    $customer->email = $email;
-                    $isNewRecord = true;
+                if (!$customer) {
+                    continue;
                 }
 
-                // Actualizamos datos básicos si vienen de GHL
-                $customer->contact_id = $ghlId;
-                if (! empty($contact['firstName']) || ! empty($contact['firstNameLowerCase'])) {
-                    $customer->first_name = $contact['firstName'] ?? $contact['firstNameLowerCase'];
-                }
-                if (! empty($contact['lastName']) || ! empty($contact['lastNameLowerCase'])) {
-                    $customer->last_name = $contact['lastName'] ?? $contact['lastNameLowerCase'];
-                }
-                if (! empty($contact['phone'])) {
-                    $customer->phone = $contact['phone'];
-                }
+                $isNewRecord = $customer->wasRecentlyCreated;
 
                 // 5. EXTRACCIÓN Y CONSOLIDACIÓN DE LAS FUENTES DE MARKETING
-                // Extraemos los valores específicos de cada fuente
                 $originValue = $incomingCustomFields['Origin'] ?? $incomingCustomFields['origin'] ?? null;
-                $contactSourceValue = $contact['source'] ?? $contact['contactSource'] ?? null;
-                $utmSourceValue = $contact['utmSource'] ?? $contact['utm_source'] ?? null;
+                if (is_array($originValue)) {
+                    $originValue = $originValue[0] ?? null;
+                }
 
-                // Definimos un source principal jerárquico para reportes rápidos si se requiere
+                $contactSourceValue = $contact['source'] ?? $contact['contactSource'] ?? $incomingCustomFields['contact_source'] ?? null;
+                $utmSourceValue = $contact['utmSource'] ?? $contact['utm_source'] ?? $incomingCustomFields['utm_source'] ?? null;
+
                 $primarySource = $originValue ?? $contactSourceValue ?? $utmSourceValue ?? 'Orgánico / GHL';
 
                 // 6. FUSIÓN INTELIGENTE DE METADATA
                 $existingMetadata = $customer->metadata ?? [];
 
-                // Unir Tags sin repetir
                 $mergedTags = array_unique(array_merge($existingMetadata['tags'] ?? [], $tags));
 
-                // Fusionar y limpiar Custom Fields (Elimina basura borrada en GHL)
                 $mergedCustomFields = array_merge($existingMetadata['custom_fields'] ?? [], $incomingCustomFields);
                 $cleanCustomFields = array_filter($mergedCustomFields, function ($value) {
                     return $value !== null && $value !== '';
                 });
 
                 $customer->metadata = [
-                    'source' => $existingMetadata['source'] ?? $primarySource,
-                    'origin' => $originValue,         // Tu campo personalizado select ('Facebook KCH', etc.)
-                    'contact_source' => $contactSourceValue,  // El campo por defecto de GHL ('Form Mkt Lead', etc.)
-                    'utm_source' => $utmSourceValue,      // Los parámetros UTM de la URL
-                    'tags' => array_values($mergedTags),
-                    'custom_fields' => $cleanCustomFields,
+                    'source'         => $existingMetadata['source'] ?? $primarySource,
+                    'origin'         => $originValue ?? $existingMetadata['origin'] ?? null,
+                    'contact_source' => $contactSourceValue ?? $existingMetadata['contact_source'] ?? null,
+                    'utm_source'     => $utmSourceValue ?? $existingMetadata['utm_source'] ?? null,
+                    'tags'           => array_values($mergedTags),
+                    'custom_fields'  => $cleanCustomFields,
                 ];
 
                 // 7. FECHAS HISTÓRICAS EXACTAS (Solo para registros nuevos)
-                if ($isNewRecord && ! empty($contact['dateAdded'])) {
+                if ($isNewRecord && !empty($contact['dateAdded'])) {
                     try {
                         $customer->created_at = Carbon::parse($contact['dateAdded'])->setTimezone('America/Mexico_City');
                         $customer->updated_at = $customer->created_at;
-
-                        // Desactivamos timestamps temporalmente para que Eloquent respete la fecha histórica
                         $customer->timestamps = false;
                     } catch (\Exception $e) {
                         $customer->created_at = now();
                     }
                 }
 
-                // Guardamos el cliente (Si ya existía, actualiza sus datos conservando su created_at original)
                 $customer->save();
+
             } catch (\Exception $e) {
-                // Si un contacto individual falla, lo registramos en el log pero dejamos que el chunk siga su curso
-                Log::error("⚠️ Error procesando contacto individual de GHL [Email: {$email}]: ".$e->getMessage());
-                $this->release(30);
+                Log::error("⚠️ Error procesando contacto individual de GHL [GHL ID: {$ghlId}]: ".$e->getMessage());
             }
         }
     }
@@ -169,7 +168,6 @@ class ProcessGhlContactsChunkJob implements ShouldQueue
                 return $map;
             } catch (\Exception $e) {
                 Log::error('❌ Excepción en Custom Fields: '.$e->getMessage());
-
                 return [];
             }
         });
