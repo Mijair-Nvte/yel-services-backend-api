@@ -33,20 +33,22 @@ class ProcessGhlContactsChunkJob implements ShouldQueue
         $token = config('services.ghl.token');
         $locationId = config('services.ghl.location_id');
 
-        // 2. Traemos el diccionario de IDs => Nombres
+        // 2. Traemos el diccionario de IDs => Nombres de Custom Fields
         $customFieldsMap = $this->getCustomFieldsMap($token, $locationId);
 
-        foreach ($this->contactsChunk as $contact) {
+        foreach ($this->contactsChunk as $item) {
             try {
+                // Soportar tanto si viene envuelto en 'contact' como si viene plano
+                $contact = $item['contact'] ?? $item;
+
                 $ghlId = $contact['id'] ?? null;
                 $ghlId = !empty($ghlId) ? trim($ghlId) : null;
 
-                // Si no hay de mínimo un ID de GHL, no podemos rastrearlo de forma segura
                 if (!$ghlId) {
                     continue;
                 }
 
-                // Correo y Teléfono opcionales pero validados si existen
+                // Correo y Teléfono
                 $email = $contact['email'] ?? $contact['emailLowerCase'] ?? null;
                 $email = !empty($email) ? strtolower(trim($email)) : null;
                 if ($email && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -70,7 +72,7 @@ class ProcessGhlContactsChunkJob implements ShouldQueue
 
                 $rawCustomFields = $contact['customFields'] ?? [];
 
-                // 3. Traducimos los Custom Fields
+                // 3. Traducimos y aplanamos los Custom Fields
                 $incomingCustomFields = [];
                 foreach ($rawCustomFields as $cf) {
                     $fieldId = $cf['id'] ?? '';
@@ -78,8 +80,9 @@ class ProcessGhlContactsChunkJob implements ShouldQueue
                     
                     $fieldName = $customFieldsMap[$fieldId] ?? $fieldId;
 
-                    if (is_array($fieldValue) && count($fieldValue) === 1) {
-                        $fieldValue = $fieldValue[0];
+                    // Si viene como array (ej. de selección múltiple), lo unimos o tomamos el primero
+                    if (is_array($fieldValue)) {
+                        $fieldValue = count($fieldValue) === 1 ? $fieldValue[0] : implode(', ', $fieldValue);
                     }
 
                     $incomingCustomFields[$fieldName] = $fieldValue;
@@ -97,17 +100,19 @@ class ProcessGhlContactsChunkJob implements ShouldQueue
 
                 // 5. EXTRACCIÓN Y CONSOLIDACIÓN DE LAS FUENTES DE MARKETING
                 $originValue = $incomingCustomFields['Origin'] ?? $incomingCustomFields['origin'] ?? null;
-                if (is_array($originValue)) {
-                    $originValue = $originValue[0] ?? null;
-                }
+                
+                // Extracción de attributionSource si existe
+                $attribution = $contact['attributionSource'] ?? [];
+                $sessionSource = $attribution['sessionSource'] ?? null;
+                $medium = $attribution['medium'] ?? null;
 
-                $contactSourceValue = $contact['source'] ?? $contact['contactSource'] ?? $incomingCustomFields['contact_source'] ?? null;
+                $contactSourceValue = $contact['source'] ?? $contact['contactSource'] ?? $incomingCustomFields['contact_source'] ?? $sessionSource ?? null;
                 $utmSourceValue = $contact['utmSource'] ?? $contact['utm_source'] ?? $incomingCustomFields['utm_source'] ?? null;
 
                 $primarySource = $originValue ?? $contactSourceValue ?? $utmSourceValue ?? 'Orgánico / GHL';
 
                 // 6. FUSIÓN INTELIGENTE DE METADATA
-        $existingMetadata = $customer->metadata ?? [];
+                $existingMetadata = $customer->metadata ?? [];
 
                 $mergedTags = array_unique(array_merge($existingMetadata['tags'] ?? [], $tags));
 
@@ -118,21 +123,25 @@ class ProcessGhlContactsChunkJob implements ShouldQueue
 
                 $customer->metadata = [
                     'source'         => $primarySource ?? $existingMetadata['source'] ?? 'Orgánico / GHL',
-                  'origin'         => $originValue ?? $existingMetadata['origin'] ?? null,
+                    'origin'         => $originValue ?? $existingMetadata['origin'] ?? null,
                     'contact_source' => $contactSourceValue ?? $existingMetadata['contact_source'] ?? null,
                     'utm_source'     => $utmSourceValue ?? $existingMetadata['utm_source'] ?? null,
                     'tags'           => array_values($mergedTags),
                     'custom_fields'  => $cleanCustomFields,
                 ];
 
-                // 7. FECHAS HISTÓRICAS EXACTAS (Solo para registros nuevos)
-                if ($isNewRecord && !empty($contact['dateAdded'])) {
+                // 7. FECHAS HISTÓRICAS EXACTAS (Aplica para nuevos y existentes para corregir el histórico)
+                $ghlDateAdded = $contact['dateAdded'] ?? $contact['date_created'] ?? null;
+                if (!empty($ghlDateAdded)) {
                     try {
-                        $customer->created_at = Carbon::parse($contact['dateAdded'])->setTimezone('America/Mexico_City');
-                        $customer->updated_at = $customer->created_at;
-                        $customer->timestamps = false;
+                        $parsedDate = Carbon::parse($ghlDateAdded)->setTimezone('America/Mexico_City');
+                        $customer->created_at = $parsedDate;
+                        $customer->updated_at = $parsedDate;
+                        $customer->timestamps = false; // Desactiva timestamps automáticos para respetar la fecha de GHL
                     } catch (\Exception $e) {
-                        $customer->created_at = now();
+                        if ($isNewRecord) {
+                            $customer->created_at = now();
+                        }
                     }
                 }
 
