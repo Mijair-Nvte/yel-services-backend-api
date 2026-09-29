@@ -107,7 +107,7 @@ class ProcessGhlContactsChunkJob implements ShouldQueue
                 $primarySource = $originValue ?? $contactSourceValue ?? $utmSourceValue ?? 'Orgánico / GHL';
 
                 // 6. FUSIÓN INTELIGENTE DE METADATA
-                $existingMetadata = $customer->metadata ?? [];
+        $existingMetadata = $customer->metadata ?? [];
 
                 $mergedTags = array_unique(array_merge($existingMetadata['tags'] ?? [], $tags));
 
@@ -117,8 +117,8 @@ class ProcessGhlContactsChunkJob implements ShouldQueue
                 });
 
                 $customer->metadata = [
-                    'source'         => $existingMetadata['source'] ?? $primarySource,
-                    'origin'         => $originValue ?? $existingMetadata['origin'] ?? null,
+                    'source'         => $primarySource ?? $existingMetadata['source'] ?? 'Orgánico / GHL',
+                  'origin'         => $originValue ?? $existingMetadata['origin'] ?? null,
                     'contact_source' => $contactSourceValue ?? $existingMetadata['contact_source'] ?? null,
                     'utm_source'     => $utmSourceValue ?? $existingMetadata['utm_source'] ?? null,
                     'tags'           => array_values($mergedTags),
