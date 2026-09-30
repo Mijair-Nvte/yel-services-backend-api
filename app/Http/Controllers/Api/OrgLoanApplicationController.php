@@ -87,7 +87,10 @@ public function update(Request $request, string $uid, string $applicationUid, Lo
 
             $request->validate([
                 'status' => 'sometimes|required|in:Open,Lost,Won,Abandon',
-                'loan_type' => 'sometimes|string|max:100',
+               'loan_purpose' => 'sometimes|required|string|max:255',
+                'loan_program' => 'nullable|string|max:50',
+                'occupancy_type' => 'nullable|string|max:50',
+                'is_first_time_buyer' => 'sometimes|boolean',
                 'commission_amount' => 'sometimes|numeric|min:0',
                 'commission_status' => 'sometimes|in:pending,paid,not_applicable',
                 'seller_payout_date' => 'nullable|date',

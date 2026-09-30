@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Mail\InsuranceRequestMail;
+use App\Mail\LoanAssignedAgentMail;
 use App\Mail\LoanRequestMail;
 use App\Models\OrgCompany;
 use App\Models\OrgModuleSetting;
@@ -54,18 +55,15 @@ class ProcessModuleAutomations implements ShouldQueue
             ->where('is_active', true)
             ->first();
 
-        // 2. Si no hay configuración o está vacía, abortamos el Job silenciosamente.
-        if (! $settingRecord || empty($settingRecord->settings)) {
-            return;
+        // 2. Ejecutar Webhooks y Notificaciones a Administradores (solo si hay config)
+        if ($settingRecord && ! empty($settingRecord->settings)) {
+            $settings = $settingRecord->settings;
+            $this->processWebhooks($settings);
+            $this->processInternalNotifications($settings);
         }
 
-        $settings = $settingRecord->settings;
-
-        // 3. 🚀 Orquestador de Tareas
-        $this->processWebhooks($settings);
-        $this->processInternalNotifications($settings);
-
-        // $this->processPusherRealTime($settings); // <- Listo para el futuro
+        // 3.  NUEVO: Notificar siempre al Agente Asignado (independiente de la config general)
+        $this->processAgentNotifications();
     }
 
     /**
@@ -80,12 +78,26 @@ class ProcessModuleAutomations implements ShouldQueue
 
             if ($url) {
                 try {
-                    // Usamos Http con un timeout de 10 segundos
+                    // 1. Convertimos la entidad base a array
+                    $payloadData = $this->entity->toArray();
+
+                    // 2. 🚀 ENRIQUECER EL PAYLOAD: Si tiene un agente asignado, agregamos sus datos
+                    if (! empty($this->entity->assigned_to)) {
+                        // Buscamos al agente (solo necesitamos id, name y email por seguridad/limpieza)
+                        $agent = User::select('id', 'name', 'email')->find($this->entity->assigned_to);
+
+                        if ($agent) {
+                            // Esto agregará un nuevo nodo "assigned_agent" al JSON que recibe GHL
+                            $payloadData['assigned_agent'] = $agent->toArray();
+                        }
+                    }
+
+                    // 3. Enviamos el Webhook
                     Http::timeout(10)->post($url, [
                         'event' => $this->eventName,
                         'module' => $this->moduleName,
                         'company_uid' => $this->company->uid,
-                        'payload' => $this->entity->toArray(), // Mandamos toda la info del registro
+                        'payload' => $payloadData, // <-- Enviamos el payload enriquecido
                         'timestamp' => now()->toIso8601String(),
                     ]);
                 } catch (\Exception $e) {
@@ -138,6 +150,30 @@ class ProcessModuleAutomations implements ShouldQueue
                         // Aislamos el error para que un fallo en un email no detenga el envío al resto del equipo
                         Log::error("Error enviando email a {$user->email} para módulo {$this->moduleName}: ".$e->getMessage());
                     }
+                }
+            }
+        }
+    }
+
+    protected function processAgentNotifications()
+    {
+        // Solo notificamos cuando se CREA la solicitud y si trae un agente asignado
+        if ($this->eventName === 'created' && ! empty($this->entity->assigned_to)) {
+
+            // Buscamos al usuario asignado
+            $assignedAgent = User::find($this->entity->assigned_to);
+
+            if ($assignedAgent && $assignedAgent->email) {
+                try {
+                    if ($this->moduleName === 'loans') {
+                        // Enviamos el correo específico para el agente
+                        Mail::to($assignedAgent->email)->send(new LoanAssignedAgentMail($this->entity, $assignedAgent, $this->company));
+                    }
+
+                    Log::info("Notificación de asignación enviada al agente: {$assignedAgent->email} | Módulo: {$this->moduleName}");
+
+                } catch (\Exception $e) {
+                    Log::error("Error enviando email al agente asignado {$assignedAgent->email}: ".$e->getMessage());
                 }
             }
         }
