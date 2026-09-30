@@ -7,11 +7,11 @@ use App\Http\Controllers\Controller;
 use App\Mail\LoanStatusUpdatedMail;
 use App\Models\OrgCompany;
 use App\Models\OrgLoanApplication;
+use App\Services\Loan\LoanCommissionService;
 use App\Traits\TriggersModuleAutomations;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
-use App\Services\Loan\LoanCommissionService;
 
 class OrgLoanApplicationController extends Controller
 {
@@ -30,7 +30,8 @@ class OrgLoanApplicationController extends Controller
             $this->authorize('view_loan'); // Asegúrate de tener este permiso en Spatie
 
             // Listar solicitudes ordenadas por las más recientes y cargando al cliente
-            $applications = OrgLoanApplication::with(['customer', 'user'])
+            // En tu método index()
+            $applications = OrgLoanApplication::with(['customer', 'user', 'assignee']) // <-- Agrega 'assignee'
                 ->where('org_company_id', $company->id)
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -53,7 +54,7 @@ class OrgLoanApplicationController extends Controller
             $this->authorizeWorkspace($company);
             $this->authorize('view_loan');
 
-            $application = OrgLoanApplication::with('customer')
+            $application = OrgLoanApplication::with(['customer', 'user', 'assignee'])
                 ->where('uid', $applicationUid)
                 ->where('org_company_id', $company->id)
                 ->firstOrFail();
@@ -68,7 +69,7 @@ class OrgLoanApplicationController extends Controller
     /**
      * ✏️ Actualizar una solicitud (Estatus, Comisiones, etc.)
      */
-public function update(Request $request, string $uid, string $applicationUid, LoanCommissionService $commissionService)
+    public function update(Request $request, string $uid, string $applicationUid, LoanCommissionService $commissionService)
     {
         try {
             $company = OrgCompany::where('uid', $uid)->firstOrFail();
@@ -77,7 +78,7 @@ public function update(Request $request, string $uid, string $applicationUid, Lo
             $this->authorize('manage_loan'); // Permiso para administrar préstamos
 
             //  2. Cargamos al partner ('user') para poder enviarle el correo
-            $application = OrgLoanApplication::with(['customer', 'user'])
+          $application = OrgLoanApplication::with(['customer', 'user', 'assignee'])
                 ->where('uid', $applicationUid)
                 ->where('org_company_id', $company->id)
                 ->firstOrFail();
@@ -87,7 +88,7 @@ public function update(Request $request, string $uid, string $applicationUid, Lo
 
             $request->validate([
                 'status' => 'sometimes|required|in:Open,Lost,Won,Abandon',
-               'loan_purpose' => 'sometimes|required|string|max:255',
+                'loan_purpose' => 'sometimes|required|string|max:255',
                 'loan_program' => 'nullable|string|max:50',
                 'occupancy_type' => 'nullable|string|max:50',
                 'is_first_time_buyer' => 'sometimes|boolean',
@@ -103,9 +104,9 @@ public function update(Request $request, string $uid, string $applicationUid, Lo
             // Si el estatus cambió a 'Won', calculamos comisiones usando el Service
             if ($oldStatus !== 'Won' && $application->status === 'Won') {
                 $commissionService->recalculateForApplication($application);
-                
+
                 // Recargamos el modelo para reflejar los cambios en la respuesta
-                $application->refresh(); 
+                $application->refresh();
             }
 
             //  4. REGLA DE NEGOCIO: Notificar al Partner si el estatus cambió
