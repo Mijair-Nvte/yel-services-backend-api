@@ -28,7 +28,7 @@ class OrgCompanyUserController extends Controller
         $directory = OrgCompanyUser::where('org_company_id', $company->id)
             ->where('is_active', true)
             ->with(['user:id,name,email', 'user.profile:user_id,avatar', 'user.areaAssignments.area:id,name',
-                'user.areaAssignments.position:id,name'])
+                'user.areaAssignments.position:id,name,slug'])
             ->get()
             ->map(function ($member) use ($company) {
                 // 🔍 Extraemos el rol vía Spatie, o validamos si es el dueño
