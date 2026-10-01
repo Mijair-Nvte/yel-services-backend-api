@@ -53,6 +53,8 @@ class OrgEventController extends Controller
               ->orderBy('created_at', 'desc')
                 ->get();
 
+                $events->makeVisible(['meeting_url', 'external_url']);
+
             return response()->json($events);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Error al cargar eventos.'], 500);
@@ -118,6 +120,7 @@ class OrgEventController extends Controller
             if ($needsUpdate) {
                 $event->save();
             }
+            $event->makeVisible(['meeting_url', 'external_url']);
 
             return response()->json($event, 201);
         } catch (\Exception $e) {
@@ -138,6 +141,8 @@ class OrgEventController extends Controller
             $event = OrgEvent::where('uid', $eventUid)
                 ->where('org_company_id', $company->id)
                 ->firstOrFail();
+
+                $event->makeVisible(['meeting_url', 'external_url']);
 
             return response()->json($event);
         } catch (\Exception $e) {
@@ -160,8 +165,16 @@ class OrgEventController extends Controller
                 ->firstOrFail();
 
             $data = $request->validate([
-                // ... (mantén tus validaciones de update tal cual las tienes)
-                'title' => 'sometimes|string|max:255',
+              'title' => 'required|string|max:255',
+                'description' => 'nullable|string',
+                'color' => 'nullable|string|in:blue,red,green,yellow,purple,orange,pink',
+                'location' => 'nullable|string|max:255',
+                'meeting_url' => 'nullable|url|max:255',
+                'external_url' => 'nullable|url|max:255',
+                'target_platform' => 'required|string|in:yel_services,yel_pro,yel_investor',
+                'starts_at' => 'required|date',
+                'ends_at' => 'nullable|date|after_or_equal:starts_at',
+                'is_all_day' => 'boolean',
                 'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
                 'banner_image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             ]);
@@ -189,6 +202,8 @@ class OrgEventController extends Controller
 
             $event->update($data);
 
+            $event->makeVisible(['meeting_url', 'external_url']);
+            
             return response()->json($event);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Error al actualizar evento.'], 500);

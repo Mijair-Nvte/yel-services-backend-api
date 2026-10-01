@@ -47,6 +47,10 @@ class OrgEvent extends Model
         'banner_image_url'
     ];
 
+    protected $hidden = [
+        'meeting_url',
+        'external_url'
+    ];
   /**
      * Generar UID y Slug único automáticamente al crear
      */

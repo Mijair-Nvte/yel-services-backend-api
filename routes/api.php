@@ -75,6 +75,8 @@ Route::prefix('v1')->group(function () {
         // Route::post('/services', [ServiceWebhookController::class, 'updateStatus']);
     });
 
+
+
     // 🔓 Rutas Públicas
     Route::post('/register', RegisterController::class);
     Route::post('/login', AuthLoginController::class);
