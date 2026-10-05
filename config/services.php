@@ -41,5 +41,10 @@ return [
         'token' => env('GHL_API_TOKEN'),
         'location_id' => env('GHL_LOCATION_ID'),
     ],
+    'facebook' => [
+        'client_id' => env('FACEBOOK_CLIENT_ID'),
+        'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
+        'redirect' => env('FACEBOOK_REDIRECT_URI'),
+    ],
 
 ];

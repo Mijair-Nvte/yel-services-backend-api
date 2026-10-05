@@ -75,8 +75,6 @@ Route::prefix('v1')->group(function () {
         // Route::post('/services', [ServiceWebhookController::class, 'updateStatus']);
     });
 
-
-
     // 🔓 Rutas Públicas
     Route::post('/register', RegisterController::class);
     Route::post('/login', AuthLoginController::class);
@@ -102,6 +100,16 @@ Route::prefix('v1')->group(function () {
     // 📄 Documentos (públicos)
     Route::get('/documents/{uid}/view', [DocumentController::class, 'view']);
     Route::get('/documents/{uid}/download', [DocumentController::class, 'download']);
+
+    // ========================================================================
+    // 🔌 INTEGRACIONES EXTERNAS (OAuth)
+    // ========================================================================
+    Route::prefix('integrations/facebook')->group(function () {
+        // Genera la URL para ir a Facebook (El frontend llamará a esta ruta)
+        Route::get('/redirect', [\App\Http\Controllers\Api\Integrations\FacebookIntegrationController::class, 'redirectToFacebook']);
+        // Recibe la respuesta directa desde los servidores de Meta
+        Route::get('/callback', [\App\Http\Controllers\Api\Integrations\FacebookIntegrationController::class, 'handleFacebookCallback']);
+    });
 
     // 🔒 Rutas Protegidas
     Route::middleware('auth:sanctum')->group(function () {
@@ -488,6 +496,15 @@ Route::prefix('v1')->group(function () {
                     Route::put('/customers/{customerUid}', [\App\Http\Controllers\Api\OrgCustomerController::class, 'update']);
                     Route::delete('/customers/{customerUid}', [\App\Http\Controllers\Api\OrgCustomerController::class, 'destroy']);
                 });
+            });
+
+            // ==========================================
+            // 📊 INTEGRACIONES: META (Páginas y Analítica)
+            // ==========================================
+            Route::prefix('integrations/meta')->group(function () {
+                Route::get('/pages', [\App\Http\Controllers\Api\Integrations\MetaIntegrationController::class, 'getPages']);
+                Route::get('/analytics/posts', [\App\Http\Controllers\Api\Integrations\MetaAnalyticsController::class, 'getPostsAndReels']);
+                Route::get('/analytics/audience', [\App\Http\Controllers\Api\Integrations\MetaAnalyticsController::class, 'getAudienceDemographics']);
             });
 
         });
