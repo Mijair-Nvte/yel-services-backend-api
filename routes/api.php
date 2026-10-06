@@ -90,6 +90,9 @@ Route::prefix('v1')->group(function () {
 
     Route::get('/realtor/auto-complete', [\App\Http\Controllers\Api\Partner\InvestorReady\ExternalPropertyController::class, 'autoComplete']);
 
+    // 🚪 Ruta pública para validar el Enlace Mágico del evento, marcar asistencia y redirigir al Meet
+    Route::get('/events/access/{registrationUid}', [EventRegistrationController::class, 'access']);
+
     // ruta para iniciar sesion de pago
     // routes/api.php
     Route::post('/public/org-companies/{uid}/checkout/create-session', [StripeCheckoutController::class, 'createSession']);

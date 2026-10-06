@@ -44,7 +44,8 @@ class OrgEvent extends Model
 
     protected $appends = [
         'cover_image_url',
-        'banner_image_url'
+        'banner_image_url',
+        'confirmation_url',
     ];
 
     protected $hidden = [
@@ -145,5 +146,17 @@ class OrgEvent extends Model
             return null;
         }
         return Storage::disk('r2_public')->url($this->banner_image);
+    }
+
+    /**
+     * Accesor para generar la URL pública de Acceso / Confirmación
+     */
+    public function getConfirmationUrlAttribute()
+    {
+        // Tomamos el dominio base de tus variables de entorno (o por defecto)
+        $domain = config('app.events_frontend_url', 'https://eventos.yaestoylisto.com');
+        
+        // Generamos la ruta limpia usando el slug dinámico del evento
+        return "{$domain}/acceso/{$this->slug}";
     }
 }

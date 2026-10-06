@@ -139,4 +139,6 @@ return [
 
     'yelinvestor_url' => env('YELINVESTOR_URL', 'https://www.yelinvestor.com'),
 
+    'events_frontend_url' => env('EVENTS_FRONTEND_URL', 'https://eventos.yaestoylisto.com'),
+
 ];
