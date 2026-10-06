@@ -335,6 +335,7 @@ class OrgEventController extends Controller
                         // Mapeamos el estatus lógico según tu tabla
                         'status' => $reg->attended ? 'attended' : 'registered',
                         'created_at' => $reg->created_at,
+                        'source' => $reg->source ?? 'Web Organica',
                         'customer' => $reg->customer ? [
                             'id' => $reg->customer->id,
                             'uid' => $reg->customer->uid,

@@ -94,7 +94,7 @@ class MetaAdsEventWebhookController extends Controller
                 'email'            => $email,
                 'phone'            => $phone ?? '',
                 'tags'             => [$ghlTag], 
-                'source'           => 'Meta Ads',
+                'source'           => 'Facebook Ads',
                 'utm_source'       => $request->input('utm_source') ?? 'Facebook Ads',
                 'utm_medium'       => $request->input('utm_medium') ?? 'cpc',
                 'utm_campaign'     => $request->input('utm_campaign') ?? '',
