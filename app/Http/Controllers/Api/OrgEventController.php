@@ -113,51 +113,45 @@ class OrgEventController extends Controller
                 $event->banner_image = $file->storeAs("{$basePath}/banners", $fileName, 'r2_public');
             }
 
-            // PROCESAMIENTO DE RECURSOS
+           // PROCESAMIENTO DE RECURSOS
             $formattedResources = [];
             $resourcesList = $eventData['resources'] ?? [];
 
             foreach ($resourcesList as $index => $res) {
                 $title = $res['title'] ?? 'Documento sin título';
-                $fileUrl = $res['url'] ?? null;
+                $fileUrl = $res['url'] ?? null; // Puede ser una URL externa o la ruta relativa previa
                 $fileInputName = "resource_file_{$index}";
 
                 if ($request->hasFile($fileInputName)) {
-                    \Log::info("✅ Archivo {$fileInputName} ENCONTRADO en la petición.");
                     $resourceFile = $request->file($fileInputName);
 
-                    // Validar si PHP rechazó el archivo (ej: por pesar mucho en php.ini)
-                    if (! $resourceFile->isValid()) {
-                        \Log::error("❌ Archivo {$fileInputName} corrupto o excede límite. Mensaje: ".$resourceFile->getErrorMessage());
-                    } else {
+                    if ($resourceFile->isValid()) {
                         $originalName = pathinfo($resourceFile->getClientOriginalName(), PATHINFO_FILENAME);
                         $cleanName = Str::slug($originalName);
                         $extension = $resourceFile->getClientOriginalExtension();
                         $resourceFileName = time()."-{$cleanName}.{$extension}";
 
-                        try {
-                            $path = $resourceFile->storeAs("{$basePath}/resources", $resourceFileName, 'r2_public');
-                            $fileUrl = Storage::disk('r2_public')->url($path);
-                            \Log::info("✅ Archivo subido con éxito a R2: {$fileUrl}");
-                        } catch (\Exception $uploadEx) {
-                            \Log::error('❌ ERROR CRÍTICO al subir a R2: '.$uploadEx->getMessage());
-                        }
+                        // ⚠️ IMPORTANTE: Guardamos SOLO la ruta relativa en la BD (ej. wsk_.../resources/file.pdf)
+                        $fileUrl = $resourceFile->storeAs("{$basePath}/resources", $resourceFileName, 'r2_public');
                     }
-                } else {
-                    \Log::warning("⚠️ Archivo {$fileInputName} NO LLEGÓ a Laravel (hasFile devolvió false).");
                 }
 
                 if (! empty($fileUrl)) {
+                    // Si la URL que viene de la BD ya incluye el dominio (por registros viejos), 
+                    // la limpiamos para dejar solo la ruta relativa.
+                    $relativePath = str_contains($fileUrl, 'r2.dev') || str_starts_with($fileUrl, 'http')
+                        ? str_replace(Storage::disk('r2_public')->url(''), '', $fileUrl)
+                        : $fileUrl;
+
                     $formattedResources[] = [
                         'title' => $title,
-                        'url' => $fileUrl,
+                        'url' => ltrim($relativePath, '/'), // Guardamos limpio y relativo
                         'type' => pathinfo($fileUrl, PATHINFO_EXTENSION) ?: 'link',
                     ];
-                    \Log::info('✅ Recurso añadido a la lista final.');
-                } else {
-                    \Log::warning("⚠️ Recurso #{$index} DESCARTADO porque quedó sin URL.");
                 }
             }
+
+            $event->resources = $formattedResources;
 
             $event->resources = $formattedResources;
             $event->save();
@@ -259,16 +253,15 @@ class OrgEventController extends Controller
                 $updateData['banner_image'] = $file->storeAs("{$basePath}/banners", $fileName, 'r2_public');
             }
 
-            // 5. Procesamiento de Recursos y Archivos Planos Adjuntos
+    // PROCESAMIENTO DE RECURSOS
             $formattedResources = [];
             $resourcesList = $eventData['resources'] ?? [];
 
             foreach ($resourcesList as $index => $res) {
                 $title = $res['title'] ?? 'Documento sin título';
-                $fileUrl = $res['url'] ?? null; // Puede ser una URL externa o una URL previa ya existente
+                $fileUrl = $res['url'] ?? null; // Puede ser una URL externa o la ruta relativa previa
                 $fileInputName = "resource_file_{$index}";
 
-                // Si el usuario adjuntó un archivo nuevo en este índice, lo subimos a R2
                 if ($request->hasFile($fileInputName)) {
                     $resourceFile = $request->file($fileInputName);
 
@@ -278,20 +271,28 @@ class OrgEventController extends Controller
                         $extension = $resourceFile->getClientOriginalExtension();
                         $resourceFileName = time()."-{$cleanName}.{$extension}";
 
-                        $path = $resourceFile->storeAs("{$basePath}/resources", $resourceFileName, 'r2_public');
-                        $fileUrl = Storage::disk('r2_public')->url($path);
+                        // ⚠️ IMPORTANTE: Guardamos SOLO la ruta relativa en la BD (ej. wsk_.../resources/file.pdf)
+                        $fileUrl = $resourceFile->storeAs("{$basePath}/resources", $resourceFileName, 'r2_public');
                     }
                 }
 
-                // Si tenemos una URL (bien porque ya existía, porque se escribió una externa o porque se subió archivo nuevo)
                 if (! empty($fileUrl)) {
+                    // Si la URL que viene de la BD ya incluye el dominio (por registros viejos), 
+                    // la limpiamos para dejar solo la ruta relativa.
+                    $relativePath = str_contains($fileUrl, 'r2.dev') || str_starts_with($fileUrl, 'http')
+                        ? str_replace(Storage::disk('r2_public')->url(''), '', $fileUrl)
+                        : $fileUrl;
+
                     $formattedResources[] = [
                         'title' => $title,
-                        'url' => $fileUrl,
+                        'url' => ltrim($relativePath, '/'), // Guardamos limpio y relativo
                         'type' => pathinfo($fileUrl, PATHINFO_EXTENSION) ?: 'link',
                     ];
                 }
             }
+
+            $event->resources = $formattedResources;
+            $event->resources = $formattedResources;
 
             $updateData['resources'] = $formattedResources;
 

@@ -149,6 +149,26 @@ class OrgEvent extends Model
     }
 
     /**
+     * Accesor para transformar los recursos: transforma las rutas relativas en URLs públicas completas al serializar.
+     */
+    public function getResourcesAttribute($value)
+    {
+        $resources = json_decode($value, true);
+
+        if (!is_array($resources)) {
+            return [];
+        }
+
+        return array_map(function ($resource) {
+            // Si tiene una ruta interna guardada (que no empiece por http), le armamos la URL pública
+            if (!empty($resource['url']) && !str_starts_with($resource['url'], 'http')) {
+                $resource['url'] = Storage::disk('r2_public')->url($resource['url']);
+            }
+            return $resource;
+        }, $resources);
+    }
+    
+    /**
      * Accesor para generar la URL pública de Acceso / Confirmación
      */
     public function getConfirmationUrlAttribute()
