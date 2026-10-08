@@ -25,6 +25,8 @@ use App\Http\Controllers\Api\OrgCompanyInvitationController;
 use App\Http\Controllers\Api\OrgCompanyLinkController;
 use App\Http\Controllers\Api\OrgCompanyNoticeController;
 use App\Http\Controllers\Api\OrgCompanyUserController;
+use App\Http\Controllers\Api\OrgCourseContentController;
+use App\Http\Controllers\Api\OrgCourseController;
 use App\Http\Controllers\Api\OrgEventController;
 use App\Http\Controllers\Api\OrgInsuranceApplicationController;
 use App\Http\Controllers\Api\OrgLoanApplicationController;
@@ -498,6 +500,47 @@ Route::prefix('v1')->group(function () {
                     Route::post('/customers', [\App\Http\Controllers\Api\OrgCustomerController::class, 'store']);
                     Route::put('/customers/{customerUid}', [\App\Http\Controllers\Api\OrgCustomerController::class, 'update']);
                     Route::delete('/customers/{customerUid}', [\App\Http\Controllers\Api\OrgCustomerController::class, 'destroy']);
+                });
+            });
+
+            // ==========================================
+            // 📚 CURSOS / LMS COURSES
+            // ==========================================
+            Route::group([], function () {
+                // Ver Cursos
+                Route::get('/courses', [OrgCourseController::class, 'index'])->middleware('can:view_courses');
+                Route::get('/courses/{courseUid}', [OrgCourseController::class, 'show'])->middleware('can:view_courses');
+
+                // Gestionar Cursos (Configuración general y subida de portadas/previews públicas)
+                Route::middleware('can:manage_courses')->group(function () {
+                    Route::post('/courses/presign', [OrgCourseController::class, 'presign']);
+                    Route::post('/courses/confirm', [OrgCourseController::class, 'confirm']);
+                    Route::post('/courses', [OrgCourseController::class, 'store']);
+                    Route::put('/courses/{courseUid}', [OrgCourseController::class, 'update']);
+                    Route::delete('/courses/{courseUid}', [OrgCourseController::class, 'destroy']);
+                });
+
+                // ==========================================
+                // 📂 MÓDULOS Y LECCIONES (Estructura del Curso)
+                // ==========================================
+                Route::prefix('courses/{courseUid}')->middleware('can:view_courses')->group(function () {
+                    // Árbol completo (Módulos con sus lecciones)
+                    Route::get('/content', [OrgCourseContentController::class, 'index']);
+                });
+
+                Route::prefix('courses/{courseUid}')->middleware('can:manage_courses')->group(function () {
+                    // Módulos
+                    Route::post('/modules', [OrgCourseContentController::class, 'storeModule']);
+                    Route::put('/modules/reorder', [OrgCourseContentController::class, 'reorderModules']);
+                    Route::put('/modules/{moduleUid}', [OrgCourseContentController::class, 'updateModule']);
+                    Route::delete('/modules/{moduleUid}', [OrgCourseContentController::class, 'destroyModule']);
+
+                    // Lecciones (Pre-firma para video en BUCKET PRIVADO y creación)
+                    Route::post('/lessons/presign', [OrgCourseContentController::class, 'presignLessonVideo']);
+                    Route::post('/modules/{moduleUid}/lessons', [OrgCourseContentController::class, 'storeLesson']);
+                    Route::put('/modules/{moduleUid}/lessons/reorder', [OrgCourseContentController::class, 'reorderLessons']);
+                    Route::put('/modules/{moduleUid}/lessons/{lessonUid}', [OrgCourseContentController::class, 'updateLesson']);
+                    Route::delete('/modules/{moduleUid}/lessons/{lessonUid}', [OrgCourseContentController::class, 'destroyLesson']);
                 });
             });
 
