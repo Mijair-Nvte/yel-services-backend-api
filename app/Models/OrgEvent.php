@@ -6,10 +6,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
-
+use App\Traits\SerializesLocalDates;
 class OrgEvent extends Model
 {
-    use HasFactory;
+    use HasFactory, SerializesLocalDates;
 
     protected $fillable = [
         'uid',
@@ -159,4 +159,7 @@ class OrgEvent extends Model
         // Generamos la ruta limpia usando el slug dinámico del evento
         return "{$domain}/acceso/{$this->slug}";
     }
+
+
+ 
 }
