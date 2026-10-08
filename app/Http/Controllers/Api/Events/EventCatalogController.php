@@ -33,8 +33,9 @@ class EventCatalogController extends Controller
                     'cover_image_url' => $event->cover_image_url,  
                     'banner_image_url' => $event->banner_image_url,
                     // Devolvemos la fecha limpia gracias al Trait del modelo (sin Z extraña)
-                    'starts_at' => $event->starts_at,
-                    'ends_at' => $event->ends_at,
+              'starts_at' => $event->starts_at ? Carbon::parse($event->starts_at)->format('Y-m-d\TH:i:s') : null,
+                    'ends_at' => $event->ends_at ? Carbon::parse($event->ends_at)->format('Y-m-d\TH:i:s') : null,
+
                     'is_all_day' => (bool) $event->is_all_day,
                     'location' => $event->location ?: ($event->meeting_url ? 'En línea' : 'Por definir'),
                     'status' => 'Próximo', // Como filtramos por >= now(), todos son próximos
@@ -71,8 +72,8 @@ class EventCatalogController extends Controller
                 'description' => $event->description,
                 'cover_image_url' => $event->cover_image_url,
                 'banner_image_url' => $event->banner_image_url,
-                'starts_at' => $event->starts_at,
-                'ends_at' => $event->ends_at,
+          'starts_at' => $event->starts_at ? Carbon::parse($event->starts_at)->format('Y-m-d\TH:i:s') : null,
+                'ends_at' => $event->ends_at ? Carbon::parse($event->ends_at)->format('Y-m-d\TH:i:s') : null,
                 'is_all_day' => (bool) $event->is_all_day,
                 'location' => $event->location ?: ($event->meeting_url ? 'En línea' : 'Por definir'),
                 'status' => $isPast ? 'Finalizado' : 'Próximo',
