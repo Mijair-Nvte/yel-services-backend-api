@@ -8,14 +8,15 @@ use App\Mail\LoanRequestMail;
 use App\Models\OrgCompany;
 use App\Models\OrgModuleSetting;
 use App\Models\User;
+use Exception;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Http;
 // 📧 Importamos los Mailables de cada módulo
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
@@ -24,6 +25,8 @@ use Illuminate\Support\Facades\Mail;
 class ProcessModuleAutomations implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public $tries = 3;
 
     public $company;
 
@@ -100,6 +103,15 @@ class ProcessModuleAutomations implements ShouldQueue
                         'payload' => $payloadData, // <-- Enviamos el payload enriquecido
                         'timestamp' => now()->toIso8601String(),
                     ]);
+
+                    if ($response->failed()) {
+                        Log::error("Fallo HTTP al enviar Webhook de {$this->moduleName}", [
+                            'status' => $response->status(),
+                            'body' => $response->body(),
+                        ]);
+                        throw new Exception('Error al comunicarse con el Webhook de GHL. Status: '.$response->status());
+                    }
+
                 } catch (\Exception $e) {
                     Log::error("Fallo al enviar Webhook de {$this->moduleName}: ".$e->getMessage());
                 }

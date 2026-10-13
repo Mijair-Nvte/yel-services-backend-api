@@ -82,6 +82,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/login', AuthLoginController::class);
     Route::post('/login/verify', VerifyOtpController::class);
     Route::post('/auth/request-verification', App\Http\Controllers\Api\Auth\RequestVerificationController::class);
+    Route::post('/auth/verify-registration', App\Http\Controllers\Api\Auth\VerifyRegistrationController::class);
 
     Route::post('/forgot-password', ForgotPasswordController::class);
     Route::post('/reset-password', ResetPasswordController::class);
@@ -252,6 +253,8 @@ Route::prefix('v1')->group(function () {
                     Route::delete('/services/{serviceUid}', [OrgServiceController::class, 'destroy']);
                 });
             });
+
+            Route::get('/events/my-registrations', [EventRegistrationController::class, 'myRegistrations']);
 
             // 📅 EVENTOS / CALENDARIO (Bloque Unificado)
             Route::group([], function () {
@@ -555,6 +558,23 @@ Route::prefix('v1')->group(function () {
 
         });
 
+        // ==========================================
+        // 🎓 ACADEMIA / PORTAL DE APRENDIZAJE (App Móvil y Web)
+        // ==========================================
+        Route::prefix('academy/companies/{companyUid}')->group(function () {
+
+            Route::prefix('courses')->group(function () {
+                // Catálogo de cursos disponibles
+                Route::get('/', [\App\Http\Controllers\Api\Academy\CourseCatalogController::class, 'index']);
+
+                // Detalle del curso (módulos, lecciones y estado de inscripción)
+                Route::get('/{courseUid}', [\App\Http\Controllers\Api\Academy\CourseCatalogController::class, 'show']);
+
+                // Inscripción gratuita al curso
+                Route::post('/{courseUid}/enroll', [\App\Http\Controllers\Api\Academy\CourseCatalogController::class, 'enroll']);
+            });
+
+        });
         // ========================================================================
         // 🔄 RUTAS SECUNDARIAS (Endpoints directos por UID que no llevan el prefijo de la compañía)
         // ========================================================================

@@ -101,6 +101,7 @@ class EventRegistrationController extends Controller
         $magicLink = "{$eventsDomain}/api/v1/events/access/{$registration->uid}";
 
         $ghlPayload = [
+            'event' => 'created',
             'first_name' => $validated['first_name'],
             'last_name' => $validated['last_name'] ?? '',
             'email' => $validated['email'],
@@ -131,6 +132,7 @@ class EventRegistrationController extends Controller
             ],
         ], 201);
     }
+
 
     /**
      * 🚪 Validar acceso por Enlace Mágico (Magic Link), marcar asistencia y redirigir al Meet
@@ -170,6 +172,35 @@ class EventRegistrationController extends Controller
                     'attended' => true,
                 ]);
                 \Log::info("✅ Asistencia marcada para el cliente: {$customer->email} en el evento: {$event->title}");
+
+                // ======================================================
+                // 🚀 ENVIAR DATOS A GOHIGHLEVEL (UPDATED / ASISTENCIA)
+                // ======================================================
+                $company = OrgCompany::find($registration->org_company_id);
+                $eventsDomain = config('app.events_frontend_url', 'https://eventos.yaestoylisto.com');
+                $magicLink = "{$eventsDomain}/api/v1/events/access/{$registration->uid}";
+
+                $eventDate = Carbon::parse($event->starts_at)->timezone('America/Chicago')->format('Y-m-d');
+                $ghlTag = "{$event->slug}-{$eventDate}";
+
+                $ghlPayload = [
+                    'event' => 'updated', // 👈 Indicamos que es una actualización de asistencia
+                    'first_name' => $customer->first_name ?? '',
+                    'last_name' => $customer->last_name ?? '',
+                    'email' => $customer->email,
+                    'phone' => $customer->phone ?? '',
+                    'tags' => [$ghlTag, 'Asistió al Evento'], // Puedes agregar un tag extra de asistencia si gustas
+                    'source' => $registration->source ?? 'Web Organica',
+                    'event_title' => $event->title,
+                    'event_date' => $event->starts_at,
+                    'company_uid' => $company->uid,
+                    'event_uid' => $event->uid,
+                    'registration_uid' => $registration->uid,
+                    'access_link' => $magicLink,
+                ];
+
+                SendEventRegistrationToGHL::dispatch($ghlPayload);
+
             } else {
                 \Log::info("ℹ️ El usuario {$customer->email} ya tenía su asistencia marcada previamente.");
             }
@@ -195,6 +226,73 @@ class EventRegistrationController extends Controller
 
             return response()->json([
                 'message' => 'Error al procesar tu acceso al evento.',
+            ], 500);
+        }
+    }
+
+    /**
+     * 🎟️ Listar los eventos en los que el usuario autenticado está inscrito (para la App / Portales)
+     */
+    public function myRegistrations(Request $request, $companyUid)
+    {
+        try {
+            $company = OrgCompany::where('uid', $companyUid)->firstOrFail();
+            $user = auth()->user();
+
+            // Buscamos si el usuario autenticado tiene un registro como customer en esta compañía
+            $customer = OrgCustomer::where('org_company_id', $company->id)
+                ->where('email', $user->email)
+                ->first();
+
+            if (! $customer) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                ]);
+            }
+
+            // Obtenemos los eventos a través de las inscripciones del cliente
+            $registrations = OrgEventRegistration::with(['event'])
+                ->where('org_company_id', $company->id)
+                ->where('org_customer_id', $customer->id)
+                ->latest()
+                ->get();
+
+            $events = $registrations->map(function ($reg) {
+                $event = $reg->event;
+                if (! $event) {
+                    return null;
+                }
+
+                return [
+                    'uid' => $event->uid,
+                    'slug' => $event->slug,
+                    'title' => $event->title,
+                    'description' => $event->description,
+                    'cover_image_url' => $event->cover_image_url,
+                    'banner_image_url' => $event->banner_image_url,
+                    'starts_at' => $event->starts_at ? Carbon::parse($event->starts_at)->format('Y-m-d\TH:i:s') : null,
+                    'ends_at' => $event->ends_at ? Carbon::parse($event->ends_at)->format('Y-m-d\TH:i:s') : null,
+                    'is_all_day' => (bool) $event->is_all_day,
+                    'location' => $event->location ?: ($event->meeting_url ? 'En línea' : 'Por definir'),
+                    'status' => 'Inscrito',
+                    'registration_uid' => $reg->uid,
+                    'registered_at' => $reg->registered_at,
+                    'attended' => $reg->attended,
+                ];
+            })->filter()->values();
+
+            return response()->json([
+                'success' => true,
+                'data' => $events,
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('🔥 ERROR AL CARGAR EVENTOS INSCRITOS: '.$e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cargar los eventos inscritos.',
             ], 500);
         }
     }

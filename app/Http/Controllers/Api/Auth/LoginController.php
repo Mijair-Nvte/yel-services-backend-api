@@ -11,7 +11,6 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
-// ✅ Importamos el correo de registro
 
 class LoginController extends Controller
 {
