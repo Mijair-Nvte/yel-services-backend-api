@@ -54,6 +54,7 @@ use App\Http\Controllers\Api\Yelpro\YelproFolderController;
 use App\Http\Controllers\GhlSyncController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\OrgEventRegistrationController;
 
 Route::prefix('v1')->group(function () {
 
@@ -270,6 +271,8 @@ Route::prefix('v1')->group(function () {
                     Route::post('/events', [OrgEventController::class, 'store']);
                     Route::put('/events/{eventUid}', [OrgEventController::class, 'update']);
                     Route::delete('/events/{eventUid}', [OrgEventController::class, 'destroy']);
+                    
+                    Route::delete('/events/{eventUid}/registrations/{registrationUid}', [OrgEventRegistrationController::class, 'destroy']);
                 });
             });
 

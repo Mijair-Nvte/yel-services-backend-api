@@ -3,12 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Support\Str;
 
 class OrgEventRegistration extends Model
 {
-    use SoftDeletes;
+  
 
     protected $fillable = [
         'uid', 'org_company_id', 'org_event_id', 'org_customer_id',
