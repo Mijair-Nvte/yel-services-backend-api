@@ -98,7 +98,7 @@ class EventRegistrationController extends Controller
         $ghlTag = "{$event->slug}-{$eventDate}";
 
         $eventsDomain = config('app.events_frontend_url', 'https://eventos.yaestoylisto.com');
-        $magicLink = "{$eventsDomain}/api/v1/events/access/{$registration->uid}";
+        $magicLink = "{$eventsDomain}/access/{$registration->uid}";
 
         $ghlPayload = [
             'event' => 'created',
@@ -132,7 +132,6 @@ class EventRegistrationController extends Controller
             ],
         ], 201);
     }
-
 
     /**
      * 🚪 Validar acceso por Enlace Mágico (Magic Link), marcar asistencia y redirigir al Meet
@@ -184,7 +183,7 @@ class EventRegistrationController extends Controller
                 $ghlTag = "{$event->slug}-{$eventDate}";
 
                 $ghlPayload = [
-                    'event' => 'updated', // 👈 Indicamos que es una actualización de asistencia
+                    'event' => 'updated',
                     'first_name' => $customer->first_name ?? '',
                     'last_name' => $customer->last_name ?? '',
                     'email' => $customer->email,
@@ -295,5 +294,60 @@ class EventRegistrationController extends Controller
                 'message' => 'Error al cargar los eventos inscritos.',
             ], 500);
         }
+    }
+
+
+    /**
+     * 🔍 Verificar si un correo electrónico ya está registrado en el evento
+     */
+    public function verify(Request $request, $companyUid, $slug)
+    {
+        // 1. Validar que venga el correo
+        $validated = $request->validate([
+            'email' => 'required|email|max:255',
+        ]);
+
+        // 2. Resolver compañía y evento mediante el slug
+        $company = OrgCompany::where('uid', $companyUid)->firstOrFail();
+
+        $event = OrgEvent::where('org_company_id', $company->id)
+            ->where('slug', $slug)
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        // 3. Buscar si existe un cliente con ese correo en la compañía
+        $customer = OrgCustomer::where('org_company_id', $company->id)
+            ->where('email', $validated['email'])
+            ->first();
+
+        if (! $customer) {
+            return response()->json([
+                'exists' => false,
+                'message' => 'El correo no está registrado.',
+            ], 404);
+        }
+
+        // 4. Buscar si ese cliente tiene un registro activo para este evento
+        $registration = OrgEventRegistration::where('org_event_id', $event->id)
+            ->where('org_customer_id', $customer->id)
+            ->first();
+
+        if (! $registration) {
+            return response()->json([
+                'exists' => false,
+                'message' => 'El correo existe pero no está inscrito en este evento.',
+            ], 404);
+        }
+
+        // 5. ¡Sí está registrado! Devolvemos su UID para el acceso directo
+        return response()->json([
+            'exists' => true,
+            'message' => 'El usuario ya está registrado.',
+            'data' => [
+                'registration_uid' => $registration->uid,
+                'first_name' => $customer->first_name,
+                'email' => $customer->email,
+            ],
+        ], 200);
     }
 }

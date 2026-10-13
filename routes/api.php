@@ -783,8 +783,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/', [EventCatalogController::class, 'index']);
         Route::get('/{slug}', [EventCatalogController::class, 'show']);
         Route::post('/{slug}/register', [EventRegistrationController::class, 'store']);
-        // Route::post('/{eventUid}/checkout', [\App\Http\Controllers\Api\Events\EventCheckoutController::class, 'process']);
-
+        Route::post('/{slug}/verify', [EventRegistrationController::class, 'verify']);
     });
 
 });
