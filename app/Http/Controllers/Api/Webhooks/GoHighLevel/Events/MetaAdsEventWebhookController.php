@@ -89,6 +89,7 @@ class MetaAdsEventWebhookController extends Controller
             $ghlTag = "{$event->slug}-{$eventDate}";
 
             $ghlPayload = [
+                'event'            => 'created',
                 'first_name'       => $firstName,
                 'last_name'        => $lastName,
                 'email'            => $email,
