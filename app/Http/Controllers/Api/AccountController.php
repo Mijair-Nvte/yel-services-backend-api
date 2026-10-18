@@ -21,14 +21,14 @@ class AccountController extends Controller
                 'email' => $user->email,
                 'profile' => [
                     'first_name' => optional($user->profile)->first_name,
-                    'last_name'  => optional($user->profile)->last_name,
-                    'phone'      => optional($user->profile)->phone,
-                    'country'    => optional($user->profile)->country,
-                    'state'      => optional($user->profile)->state,
-                    'city'       => optional($user->profile)->city,
+                    'last_name' => optional($user->profile)->last_name,
+                    'phone' => optional($user->profile)->phone,
+                    'country' => optional($user->profile)->country,
+                    'state' => optional($user->profile)->state,
+                    'city' => optional($user->profile)->city,
                     'avatar_url' => optional($user->profile)->avatar_url,
-                    'timezone'   => optional($user->profile)->timezone,
-                    'language'   => optional($user->profile)->language,
+                    'timezone' => optional($user->profile)->timezone,
+                    'language' => optional($user->profile)->language,
                 ],
             ],
         ]);
@@ -43,11 +43,11 @@ class AccountController extends Controller
 
         $validated = $request->validate([
             'first_name' => 'nullable|string|max:255',
-            'last_name'  => 'nullable|string|max:255',
-            'phone'      => 'nullable|string|max:30',
-            'country'    => 'nullable|string|max:100',
-            'state'      => 'nullable|string|max:100',
-            'city'       => 'nullable|string|max:100',
+            'last_name' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:30',
+            'country' => 'nullable|string|max:100',
+            'state' => 'nullable|string|max:100',
+            'city' => 'nullable|string|max:100',
         ]);
 
         $user->profile()->update($validated);
@@ -80,6 +80,26 @@ class AccountController extends Controller
         return response()->json([
             'message' => 'Avatar actualizado correctamente',
             'avatar_url' => $user->fresh()->profile->avatar_url,
+        ]);
+    }
+
+    /**
+     * ❌ Eliminar cuenta de usuario (Soft Delete)
+     */
+    public function destroy(Request $request)
+    {
+        $user = Auth::user();
+
+        // 1. Revocar todos los tokens de Sanctum (Cierra la sesión en todos los dispositivos)
+        $user->tokens()->delete();
+
+        // 2. Ejecutar el borrado (Hará un Soft Delete gracias a tu columna deleted_at)
+        $user->delete();
+
+        // 3. Responder al frontend para que lo redirija al Login
+        return response()->json([
+            'success' => true,
+            'message' => 'Tu cuenta y todos tus datos han sido eliminados correctamente.',
         ]);
     }
 }

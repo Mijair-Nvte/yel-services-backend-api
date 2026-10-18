@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\OrgCompanyUserController;
 use App\Http\Controllers\Api\OrgCourseContentController;
 use App\Http\Controllers\Api\OrgCourseController;
 use App\Http\Controllers\Api\OrgEventController;
+use App\Http\Controllers\Api\OrgEventRegistrationController;
 use App\Http\Controllers\Api\OrgInsuranceApplicationController;
 use App\Http\Controllers\Api\OrgLoanApplicationController;
 use App\Http\Controllers\Api\OrgPaymentLinkMappingController;
@@ -54,7 +55,6 @@ use App\Http\Controllers\Api\Yelpro\YelproFolderController;
 use App\Http\Controllers\GhlSyncController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\OrgEventRegistrationController;
 
 Route::prefix('v1')->group(function () {
 
@@ -118,6 +118,17 @@ Route::prefix('v1')->group(function () {
         Route::get('/callback', [\App\Http\Controllers\Api\Integrations\FacebookIntegrationController::class, 'handleFacebookCallback']);
     });
 
+    // ========================================================================
+    // 🎓 ACADEMIA / PORTAL DE APRENDIZAJE (Rutas Públicas)
+    // ========================================================================
+    Route::prefix('academy/companies/{companyUid}/courses')->group(function () {
+        // Catálogo de cursos disponibles
+        Route::get('/', [\App\Http\Controllers\Api\Academy\CourseCatalogController::class, 'index']);
+
+        // Detalle del curso (módulos y lecciones)
+        Route::get('/{courseUid}', [\App\Http\Controllers\Api\Academy\CourseCatalogController::class, 'show']);
+    });
+
     // 🔒 Rutas Protegidas
     Route::middleware('auth:sanctum')->group(function () {
 
@@ -133,6 +144,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/account', [AccountController::class, 'show']);
         Route::put('/account', [AccountController::class, 'update']);
         Route::post('/account/avatar', [AccountController::class, 'uploadAvatar']);
+
+        Route::delete('/account', [AccountController::class, 'destroy']);
 
         // ☁️ ALMACENAMIENTO GLOBAL (R2)
         Route::post('/storage/presign', [\App\Http\Controllers\Api\Common\CloudStorageController::class, 'presign']);
@@ -271,7 +284,9 @@ Route::prefix('v1')->group(function () {
                     Route::post('/events', [OrgEventController::class, 'store']);
                     Route::put('/events/{eventUid}', [OrgEventController::class, 'update']);
                     Route::delete('/events/{eventUid}', [OrgEventController::class, 'destroy']);
-                    
+
+                    Route::post('/events/{eventUid}/registrations/import', [OrgEventRegistrationController::class, 'import']);
+
                     Route::delete('/events/{eventUid}/registrations/{registrationUid}', [OrgEventRegistrationController::class, 'destroy']);
                 });
             });
@@ -567,11 +582,6 @@ Route::prefix('v1')->group(function () {
         Route::prefix('academy/companies/{companyUid}')->group(function () {
 
             Route::prefix('courses')->group(function () {
-                // Catálogo de cursos disponibles
-                Route::get('/', [\App\Http\Controllers\Api\Academy\CourseCatalogController::class, 'index']);
-
-                // Detalle del curso (módulos, lecciones y estado de inscripción)
-                Route::get('/{courseUid}', [\App\Http\Controllers\Api\Academy\CourseCatalogController::class, 'show']);
 
                 // Inscripción gratuita al curso
                 Route::post('/{courseUid}/enroll', [\App\Http\Controllers\Api\Academy\CourseCatalogController::class, 'enroll']);

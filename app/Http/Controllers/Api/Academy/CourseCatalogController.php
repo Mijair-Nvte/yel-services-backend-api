@@ -16,7 +16,9 @@ class CourseCatalogController extends Controller
     public function index($companyUid)
     {
         $company = OrgCompany::where('uid', $companyUid)->firstOrFail();
-        $user = Auth::user();
+
+        // 👈 CAMBIO: Intentamos obtener al usuario por Sanctum sin requerir autenticación
+        $user = auth('sanctum')->user();
 
         $courses = OrgCourse::where('org_company_id', $company->id)
             ->where('status', 'published')
@@ -34,7 +36,7 @@ class CourseCatalogController extends Controller
                     'title' => $course->title,
                     'slug' => $course->slug,
                     'description' => $course->description,
-                    'cover_url' => $course->cover_url, // 👈 CAMBIO AQUÍ: Usamos el Accessor
+                    'cover_url' => $course->cover_url,
                     'is_free' => (bool) $course->is_free,
                     'price' => $course->price,
                     'modules_count' => $course->modules_count,
@@ -48,13 +50,13 @@ class CourseCatalogController extends Controller
     /**
      * Muestra el detalle del curso, sus módulos y lecciones.
      */
-    public function show($companyUid, $courseUid)
+    public function show($companyUid, $slug)
     {
         $company = OrgCompany::where('uid', $companyUid)->firstOrFail();
-        $user = Auth::user();
+        $user = auth('sanctum')->user();
 
         $course = OrgCourse::where('org_company_id', $company->id)
-            ->where('uid', $courseUid)
+            ->where('slug', $slug)
             ->where('status', 'published')
             ->with(['modules' => function ($query) {
                 $query->where('is_active', true)->orderBy('sort_order', 'asc');
@@ -72,10 +74,10 @@ class CourseCatalogController extends Controller
             'uid' => $course->uid,
             'title' => $course->title,
             'description' => $course->description,
-            'cover_url' => $course->cover_url,     // 👈 CAMBIO AQUÍ
-            'preview_url' => $course->preview_url, // 👈 CAMBIO AQUÍ
+            'cover_url' => $course->cover_url,
+            'preview_url' => $course->preview_url,
             'is_free' => (bool) $course->is_free,
-            'price' => $course->price,             // 👈 Aprovechamos y agregamos el precio que faltaba aquí
+            'price' => $course->price,
             'is_enrolled' => $isEnrolled,
             'modules' => $course->modules->map(function ($module) use ($isEnrolled) {
                 return [
@@ -90,7 +92,7 @@ class CourseCatalogController extends Controller
                             'title' => $lesson->title,
                             'duration_seconds' => $lesson->duration_seconds,
                             'is_free_preview' => (bool) $lesson->is_free_preview,
-                            'video_url' => $canWatch ? $lesson->video_url : null, // 👈 CAMBIO AQUÍ: Usamos video_url del modelo
+                            'video_url' => $canWatch ? $lesson->video_url : null,
                             'can_watch' => $canWatch,
                         ];
                     }),
@@ -107,6 +109,8 @@ class CourseCatalogController extends Controller
     public function enroll($companyUid, $courseUid)
     {
         $company = OrgCompany::where('uid', $companyUid)->firstOrFail();
+
+        // Aquí sí usamos Auth::user() porque esta ruta está protegida obligatoriamente
         $user = Auth::user();
 
         $course = OrgCourse::where('org_company_id', $company->id)
