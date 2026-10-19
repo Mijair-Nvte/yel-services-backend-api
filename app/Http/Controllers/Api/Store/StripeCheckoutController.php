@@ -29,6 +29,7 @@ class StripeCheckoutController extends Controller
 
         // 3. Metadata robusta para el Webhook
         $metadata = [
+            'type' => 'service_purchase',
             'service_uid' => $service->uid,
             'service_id' => $service->id,
             'service_name' => $service->name,

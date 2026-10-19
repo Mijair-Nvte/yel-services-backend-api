@@ -141,4 +141,6 @@ return [
 
     'events_frontend_url' => env('EVENTS_FRONTEND_URL', 'https://eventos.yaestoylisto.com'),
 
+    'courses_url' => env('COURSES_URL', 'https://app.yaestoylisto.com'),
+    
 ];

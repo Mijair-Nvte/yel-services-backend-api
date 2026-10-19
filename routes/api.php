@@ -585,9 +585,19 @@ Route::prefix('v1')->group(function () {
 
                 // Inscripción gratuita al curso
                 Route::post('/{courseUid}/enroll', [\App\Http\Controllers\Api\Academy\CourseCatalogController::class, 'enroll']);
+                Route::post('/{courseUid}/checkout', [\App\Http\Controllers\Api\Academy\CourseCheckoutController::class, 'createSession']);
+            });
+
+            Route::prefix('my-courses')->group(function () {
+                // Listar cursos comprados/inscritos
+                Route::get('/', [\App\Http\Controllers\Api\Academy\MyCourseController::class, 'index']);
+                // Detalle completo del curso (Reproductor)
+                Route::get('/{courseUid}', [\App\Http\Controllers\Api\Academy\MyCourseController::class, 'show']);
+                Route::post('/{courseUid}/lessons/{lessonUid}/toggle-completion', [\App\Http\Controllers\Api\Academy\MyCourseController::class, 'toggleLessonCompletion']);
             });
 
         });
+
         // ========================================================================
         // 🔄 RUTAS SECUNDARIAS (Endpoints directos por UID que no llevan el prefijo de la compañía)
         // ========================================================================

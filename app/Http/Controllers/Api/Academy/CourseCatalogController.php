@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\OrgCompany;
 use App\Models\OrgCourse;
 use App\Models\OrgCourseEnrollment;
+use App\Services\Academy\CourseEnrollmentService;
 use Illuminate\Support\Facades\Auth;
 
 class CourseCatalogController extends Controller
@@ -106,11 +107,9 @@ class CourseCatalogController extends Controller
     /**
      * Inscribe al usuario actual en un curso gratuito.
      */
-    public function enroll($companyUid, $courseUid)
+    public function enroll(string $companyUid, string $courseUid, CourseEnrollmentService $enrollmentService)
     {
         $company = OrgCompany::where('uid', $companyUid)->firstOrFail();
-
-        // Aquí sí usamos Auth::user() porque esta ruta está protegida obligatoriamente
         $user = Auth::user();
 
         $course = OrgCourse::where('org_company_id', $company->id)
@@ -122,19 +121,8 @@ class CourseCatalogController extends Controller
             return response()->json(['message' => 'Este curso es de pago.'], 403);
         }
 
-        $enrollment = OrgCourseEnrollment::firstOrCreate(
-            ['user_id' => $user->id, 'org_course_id' => $course->id],
-            [
-                'org_company_id' => $company->id,
-                'source' => 'free',
-                'status' => 'active',
-            ]
-        );
-
-        // Si ya estaba cancelado/expirado, lo reactivamos
-        if ($enrollment->status !== 'active') {
-            $enrollment->update(['status' => 'active']);
-        }
+        
+        $enrollmentService->enrollUser($user->id, $course->id, $company->id, 'free');
 
         return response()->json([
             'message' => 'Inscripción exitosa',

@@ -23,8 +23,8 @@ class RegisterController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'source' => ['required', 'in:dashboard,yel_mobile,yel_pro,yel_investor'],
-            'company_uid' => ['nullable', 'string', 'required_if:source,yel_mobile'],
+            'source' => ['required', 'in:dashboard,yel_mobile,yel_pro,yel_investor,yel_courses'],
+            'company_uid' => ['nullable', 'string', 'required_if:source,yel_mobile,yel_courses'],
         ]);
 
         DB::beginTransaction();
@@ -47,7 +47,8 @@ class RegisterController extends Controller
 
             switch ($request->source) {
                 case 'yel_mobile':
-                    $this->handleMobileRegistration($user, $firstName, $lastName, $request->company_uid);
+                case 'yel_courses':
+                    $this->linkUserToCompany($user, $firstName, $lastName, $request->company_uid);
                     break;
                 case 'dashboard':
                 case 'yel_pro':
@@ -55,14 +56,13 @@ class RegisterController extends Controller
                     break;
             }
 
-            // Generamos el OTP de 6 dígitos idéntico a Yel Pro
+            // Generamos el OTP de 6 dígitos
             $otp = sprintf("%06d", mt_rand(1, 999999));
             Cache::put('register_otp_' . $user->id, $otp, now()->addMinutes(15));
             Mail::to($user->email)->send(new VerifyRegistrationOtpMail($otp, $user->name));
 
             DB::commit();
 
-            // Ya no retornamos el token Sanctum, bloqueamos hasta verificar
             return response()->json([
                 'message' => 'Cuenta creada. Por favor verifica tu correo.',
                 'requiresOtp' => true,
@@ -79,9 +79,11 @@ class RegisterController extends Controller
         }
     }
 
-    private function handleMobileRegistration(User $user, $firstName, $lastName, $companyUid)
+  private function linkUserToCompany(User $user, $firstName, $lastName, $companyUid)
     {
         $company = OrgCompany::where('uid', $companyUid)->firstOrFail();
+
+        // 1. Vincular o crear el registro en la tabla de clientes (org_customers)
         $customer = OrgCustomer::where('org_company_id', $company->id)->where('email', $user->email)->first();
 
         if ($customer) {
@@ -99,6 +101,33 @@ class RegisterController extends Controller
                 'first_name' => $firstName,
                 'last_name' => $lastName,
             ]);
+        }
+
+        // 2. Vincular al usuario con el Workspace en la tabla pivot org_company_users
+        DB::table('org_company_users')->updateOrInsert(
+            [
+                'user_id' => $user->id,
+                'org_company_id' => $company->id,
+            ],
+            [
+                'is_active' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+
+        // 3. ✅ Asignar el rol de Spatie usando el helper global de equipos de Spatie
+        try {
+            // Establecemos el ID del team/company para Spatie
+            app(\Spatie\Permission\PermissionRegistrar::class)->setPermissionsTeamId($company->id);
+            
+            if (!$user->hasRole('partner')) {
+                $user->assignRole('partner');
+            }
+        } catch (\Exception $e) {
+            // Fallback por si acaso tu versión de Spatie maneja los teams de otra forma
+            // Aseguramos que al menos se le asigne el rol
+            $user->assignRole('partner');
         }
     }
 }
