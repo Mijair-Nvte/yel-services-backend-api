@@ -98,11 +98,15 @@ class MyCourseController extends Controller
             $course = OrgCourse::where('uid', $courseUid)
                 ->where('org_company_id', $company->id)
                 ->where('status', 'published')
-                ->with(['modules' => function ($query) {
-                    $query->where('is_active', true)->orderBy('sort_order', 'asc');
-                }, 'modules.lessons' => function ($query) {
-                    $query->where('is_active', true)->orderBy('sort_order', 'asc');
-                }])
+              ->with([
+                    'resources', // 👈 Incluimos recursos
+                    'modules' => function ($query) {
+                        $query->where('is_active', true)->orderBy('sort_order', 'asc')->with('resources');
+                    }, 
+                    'modules.lessons' => function ($query) {
+                        $query->where('is_active', true)->orderBy('sort_order', 'asc')->with('resources');
+                    }
+                ])
                 ->firstOrFail();
 
             // Validar inscripción
@@ -126,18 +130,39 @@ class MyCourseController extends Controller
                 'title' => $course->title,
                 'description' => $course->description,
                 'cover_url' => $course->cover_url,
+                'resources' => $course->resources->map(fn($r) => [
+                    'uid' => $r->uid,
+                    'title' => $r->title,
+                    'file_name' => $r->file_name,
+                    'public_url' => $r->public_url,
+                    'file_size' => $r->file_size,
+                ]),
                 'modules' => $course->modules->map(function ($module) use ($completedLessonIds) {
                     return [
                         'uid' => $module->uid,
                         'title' => $module->title,
                         'description' => $module->description,
+                        'resources' => $module->resources->map(fn($r) => [
+                            'uid' => $r->uid,
+                            'title' => $r->title,
+                            'file_name' => $r->file_name,
+                            'public_url' => $r->public_url,
+                            'file_size' => $r->file_size,
+                        ]),
                         'lessons' => $module->lessons->map(function ($lesson) use ($completedLessonIds) {
                             return [
                                 'uid' => $lesson->uid,
                                 'title' => $lesson->title,
                                 'duration_seconds' => $lesson->duration_seconds,
                                 'video_url' => $lesson->video_url,
-                                'is_completed' => in_array($lesson->id, $completedLessonIds), // ✅ Lógica dinámica
+                                'is_completed' => in_array($lesson->id, $completedLessonIds),
+                                'resources' => $lesson->resources->map(fn($r) => [
+                                    'uid' => $r->uid,
+                                    'title' => $r->title,
+                                    'file_name' => $r->file_name,
+                                    'public_url' => $r->public_url,
+                                    'file_size' => $r->file_size,
+                                ]), 
                             ];
                         }),
                     ];

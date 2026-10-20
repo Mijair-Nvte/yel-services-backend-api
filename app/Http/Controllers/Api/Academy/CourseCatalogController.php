@@ -59,17 +59,37 @@ class CourseCatalogController extends Controller
         $course = OrgCourse::where('org_company_id', $company->id)
             ->where('slug', $slug)
             ->where('status', 'published')
-            ->with(['modules' => function ($query) {
-                $query->where('is_active', true)->orderBy('sort_order', 'asc');
-            }, 'modules.lessons' => function ($query) {
-                $query->where('is_active', true)->orderBy('sort_order', 'asc');
-            }])
+            ->with([
+                'resources',
+                'modules' => function ($query) {
+                    $query->where('is_active', true)->orderBy('sort_order', 'asc')->with('resources');
+                },
+                'modules.lessons' => function ($query) {
+                    $query->where('is_active', true)->orderBy('sort_order', 'asc')->with('resources');
+                },
+            ])
             ->firstOrFail();
 
         $isEnrolled = $user ? OrgCourseEnrollment::where('user_id', $user->id)
             ->where('org_course_id', $course->id)
             ->where('status', 'active')
             ->exists() : false;
+
+        $formatResource = function ($resource, bool $hasAccess) {
+            $data = [
+                'uid' => $resource->uid,
+                'title' => $resource->title,
+                'file_name' => $resource->file_name,
+                'mime_type' => $resource->mime_type,
+            ];
+
+            if ($hasAccess) {
+                $data['public_url'] = $resource->public_url;
+                $data['file_size'] = $resource->file_size;
+            }
+
+            return $data;
+        };
 
         $courseData = [
             'uid' => $course->uid,
@@ -80,22 +100,34 @@ class CourseCatalogController extends Controller
             'is_free' => (bool) $course->is_free,
             'price' => $course->price,
             'is_enrolled' => $isEnrolled,
-            'modules' => $course->modules->map(function ($module) use ($isEnrolled) {
+            'resources' => $course->resources->map(fn ($r) => $formatResource($r, $isEnrolled)),
+
+            // 👈 AÑADIDO: use ($isEnrolled, $formatResource)
+            'modules' => $course->modules->map(function ($module) use ($isEnrolled, $formatResource) {
                 return [
                     'uid' => $module->uid,
                     'title' => $module->title,
                     'description' => $module->description,
-                    'lessons' => $module->lessons->map(function ($lesson) use ($isEnrolled) {
+                    'resources' => $module->resources->map(fn ($r) => $formatResource($r, $isEnrolled)),
+
+                    // 👈 AÑADIDO: use ($isEnrolled, $formatResource)
+                    'lessons' => $module->lessons->map(function ($lesson) use ($isEnrolled, $formatResource) {
                         $canWatch = $isEnrolled || $lesson->is_free_preview;
 
-                        return [
+                        $lessonData = [
                             'uid' => $lesson->uid,
                             'title' => $lesson->title,
                             'duration_seconds' => $lesson->duration_seconds,
                             'is_free_preview' => (bool) $lesson->is_free_preview,
-                            'video_url' => $canWatch ? $lesson->video_url : null,
                             'can_watch' => $canWatch,
+                            'resources' => $lesson->resources->map(fn ($r) => $formatResource($r, $canWatch)),
                         ];
+
+                        if ($canWatch) {
+                            $lessonData['video_url'] = $lesson->video_url;
+                        }
+
+                        return $lessonData;
                     }),
                 ];
             }),
@@ -121,7 +153,6 @@ class CourseCatalogController extends Controller
             return response()->json(['message' => 'Este curso es de pago.'], 403);
         }
 
-        
         $enrollmentService->enrollUser($user->id, $course->id, $company->id, 'free');
 
         return response()->json([
