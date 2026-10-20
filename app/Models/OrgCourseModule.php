@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class OrgCourseModule extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $table = 'org_course_modules';
 
@@ -42,5 +42,16 @@ class OrgCourseModule extends Model
     public function lessons(): HasMany
     {
         return $this->hasMany(OrgCourseLesson::class, 'org_course_module_id');
+    }
+
+
+    /**
+     * Obtener todos los recursos adjuntos a este modelo.
+     */
+    public function resources()
+    {
+        return $this->morphMany(OrgCourseResource::class, 'resourceable')
+                    ->where('is_active', true)
+                    ->orderBy('sort_order');
     }
 }

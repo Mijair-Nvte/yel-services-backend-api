@@ -562,7 +562,12 @@ Route::prefix('v1')->group(function () {
                     Route::put('/modules/{moduleUid}/lessons/reorder', [OrgCourseContentController::class, 'reorderLessons']);
                     Route::put('/modules/{moduleUid}/lessons/{lessonUid}', [OrgCourseContentController::class, 'updateLesson']);
                     Route::delete('/modules/{moduleUid}/lessons/{lessonUid}', [OrgCourseContentController::class, 'destroyLesson']);
-                });
+               
+                    Route::post('/resources/presign', [OrgCourseContentController::class, 'presignResource']);
+                    Route::post('/resources', [OrgCourseContentController::class, 'storeResource']);
+                    Route::delete('/resources/{resourceUid}', [OrgCourseContentController::class, 'destroyResource']);
+                    
+                    });
             });
 
             // ==========================================

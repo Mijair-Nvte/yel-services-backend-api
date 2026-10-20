@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 
 class OrgCourse extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $table = 'org_courses';
 
@@ -95,5 +95,15 @@ class OrgCourse extends Model
         }
 
         return Storage::disk('r2_public')->url($value);
+    }
+
+    /**
+     * Obtener todos los recursos adjuntos a este modelo.
+     */
+    public function resources()
+    {
+        return $this->morphMany(OrgCourseResource::class, 'resourceable')
+                    ->where('is_active', true)
+                    ->orderBy('sort_order');
     }
 }

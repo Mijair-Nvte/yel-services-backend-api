@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Storage;
 
 class OrgCourseLesson extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $table = 'org_course_lessons';
 
@@ -61,5 +61,16 @@ class OrgCourseLesson extends Model
 
         // Usamos el disco público r2_public, igual que las portadas e imágenes de propiedades
         return Storage::disk('r2_public')->url($path);
+    }
+
+
+    /**
+     * Obtener todos los recursos adjuntos a este modelo.
+     */
+    public function resources()
+    {
+        return $this->morphMany(OrgCourseResource::class, 'resourceable')
+                    ->where('is_active', true)
+                    ->orderBy('sort_order');
     }
 }

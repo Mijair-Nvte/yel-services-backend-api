@@ -87,7 +87,7 @@ class OrgCourseController extends Controller
         }
     }
 
-/**
+    /**
      * ☁️ Generar URL Pre-firmada para subidas directas a R2 (Estructura Limpia por Curso)
      */
     public function presign(Request $request, string $uid)
@@ -139,6 +139,7 @@ class OrgCourseController extends Controller
             return response()->json(['message' => 'Error al generar la pre-firma: '.$e->getMessage()], 500);
         }
     }
+
     /**
      * ✅ Confirmar subida (Opcional)
      */
@@ -287,7 +288,7 @@ class OrgCourseController extends Controller
     }
 
     /**
-     * 🗑️ Eliminar un curso
+     * 🗑️ Eliminar un Curso (portada, preview, recursos del curso, módulos, lecciones y sus archivos en R2)
      */
     public function destroy(string $uid, string $courseUid)
     {
@@ -299,14 +300,56 @@ class OrgCourseController extends Controller
 
             $course = OrgCourse::where('uid', $courseUid)
                 ->where('org_company_id', $company->id)
+                ->with(['resources', 'modules.resources', 'modules.lessons.resources'])
                 ->firstOrFail();
+
+            // 1. Borrar portada y video promocional del curso
+            if (! empty($course->cover_image_url)) {
+                Storage::disk('r2_public')->delete($course->cover_image_url);
+            }
+            if (! empty($course->preview_video_url)) {
+                Storage::disk('r2_public')->delete($course->preview_video_url);
+            }
+
+            // 2. Borrar recursos directos del curso
+            foreach ($course->resources as $resource) {
+                if (! empty($resource->file_url)) {
+                    Storage::disk('r2_public')->delete($resource->file_url);
+                }
+                $resource->delete();
+            }
+
+            // 3. Limpiar módulos, lecciones y sus recursos
+            foreach ($course->modules as $module) {
+                foreach ($module->resources as $resource) {
+                    if (! empty($resource->file_url)) {
+                        Storage::disk('r2_public')->delete($resource->file_url);
+                    }
+                    $resource->delete();
+                }
+
+                foreach ($module->lessons as $lesson) {
+                    if (! empty($lesson->video_path)) {
+                        Storage::disk('r2_public')->delete($lesson->video_path);
+                    }
+                    foreach ($lesson->resources as $resource) {
+                        if (! empty($resource->file_url)) {
+                            Storage::disk('r2_public')->delete($resource->file_url);
+                        }
+                        $resource->delete();
+                    }
+                    $lesson->delete();
+                }
+
+                $module->delete();
+            }
 
             $course->delete();
 
-            return response()->json(['message' => 'Curso eliminado correctamente.'], 200);
+            return response()->json(['message' => 'Curso y todo su contenido eliminados correctamente.'], 200);
 
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Error al eliminar el curso.'], 500);
+            return response()->json(['message' => 'Error al eliminar el curso: '.$e->getMessage()], 500);
         }
     }
 }
