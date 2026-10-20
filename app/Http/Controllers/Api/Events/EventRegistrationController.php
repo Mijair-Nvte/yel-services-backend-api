@@ -94,8 +94,7 @@ class EventRegistrationController extends Controller
 
         // Crear tag único: slug + fecha (ej: comprar-casa-llc-2026-09-24)
         // Cambia esta línea en tu EventRegistrationController:
-        $eventDate = Carbon::parse($event->starts_at)->timezone('America/Chicago')->format('Y-m-d');
-        $ghlTag = "{$event->slug}-{$eventDate}";
+        $ghlTag = $event->event_tag ?? 'event-'.Carbon::parse($event->starts_at)->format('Ymd');
 
         $eventsDomain = config('app.events_frontend_url', 'https://eventos.yaestoylisto.com');
         $magicLink = "{$eventsDomain}/access/{$registration->uid}";
@@ -179,8 +178,7 @@ class EventRegistrationController extends Controller
                 $eventsDomain = config('app.events_frontend_url', 'https://eventos.yaestoylisto.com');
                 $magicLink = "{$eventsDomain}/api/v1/events/access/{$registration->uid}";
 
-                $eventDate = Carbon::parse($event->starts_at)->timezone('America/Chicago')->format('Y-m-d');
-                $ghlTag = "{$event->slug}-{$eventDate}";
+                $ghlTag = $event->event_tag ?? 'event-'.Carbon::parse($event->starts_at)->format('Ymd');
 
                 $ghlPayload = [
                     'event' => 'updated',
@@ -295,7 +293,6 @@ class EventRegistrationController extends Controller
             ], 500);
         }
     }
-
 
     /**
      * 🔍 Verificar si un correo electrónico ya está registrado en el evento

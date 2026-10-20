@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\SerializesLocalDates;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
-use App\Traits\SerializesLocalDates;
+use Illuminate\Support\Str;
+
 class OrgEvent extends Model
 {
     use HasFactory, SerializesLocalDates;
@@ -17,11 +19,12 @@ class OrgEvent extends Model
         'created_by',
         'title',
         'slug',
+        'event_tag',
         'description',
-        'cover_image',   
-        'banner_image', 
-        'resources',     
-        'meta',         
+        'cover_image',
+        'banner_image',
+        'resources',
+        'meta',
         'color',
         'location',
         'meeting_url',
@@ -38,7 +41,7 @@ class OrgEvent extends Model
         'ends_at' => 'datetime',
         'is_all_day' => 'boolean',
         'is_active' => 'boolean',
-        'resources' => 'array', 
+        'resources' => 'array',
         'meta' => 'array',
     ];
 
@@ -50,9 +53,10 @@ class OrgEvent extends Model
 
     protected $hidden = [
         'meeting_url',
-        'external_url'
+        'external_url',
     ];
-  /**
+
+    /**
      * Generar UID y Slug único automáticamente al crear
      */
     protected static function boot()
@@ -65,7 +69,7 @@ class OrgEvent extends Model
             }
 
             // Generación de Slug único e inteligente
-            if (empty($event->slug) && !empty($event->title)) {
+            if (empty($event->slug) && ! empty($event->title)) {
                 $slug = Str::slug($event->title);
                 $originalSlug = $slug;
                 $count = 1;
@@ -77,6 +81,17 @@ class OrgEvent extends Model
                 }
 
                 $event->slug = $slug;
+            }
+
+            if (empty($event->event_tag)) {
+                $startsAt = ! empty($event->starts_at)
+        ? Carbon::parse($event->starts_at)->timezone('America/Chicago')
+        : now()->timezone('America/Chicago');
+
+                $dateFormatted = $startsAt->format('Ymd');
+                $shortUid = substr((string) $event->uid, 0, 6);
+
+                $event->event_tag = "event-{$dateFormatted}-{$shortUid}";
             }
         });
     }
@@ -134,6 +149,7 @@ class OrgEvent extends Model
         if (! $this->cover_image) {
             return null;
         }
+
         return Storage::disk('r2_public')->url($this->cover_image);
     }
 
@@ -145,6 +161,7 @@ class OrgEvent extends Model
         if (! $this->banner_image) {
             return null;
         }
+
         return Storage::disk('r2_public')->url($this->banner_image);
     }
 
@@ -155,19 +172,20 @@ class OrgEvent extends Model
     {
         $resources = json_decode($value, true);
 
-        if (!is_array($resources)) {
+        if (! is_array($resources)) {
             return [];
         }
 
         return array_map(function ($resource) {
             // Si tiene una ruta interna guardada (que no empiece por http), le armamos la URL pública
-            if (!empty($resource['url']) && !str_starts_with($resource['url'], 'http')) {
+            if (! empty($resource['url']) && ! str_starts_with($resource['url'], 'http')) {
                 $resource['url'] = Storage::disk('r2_public')->url($resource['url']);
             }
+
             return $resource;
         }, $resources);
     }
-    
+
     /**
      * Accesor para generar la URL pública de Acceso / Confirmación
      */
@@ -175,11 +193,8 @@ class OrgEvent extends Model
     {
         // Tomamos el dominio base de tus variables de entorno (o por defecto)
         $domain = config('app.events_frontend_url', 'https://eventos.yaestoylisto.com');
-        
+
         // Generamos la ruta limpia usando el slug dinámico del evento
         return "{$domain}/acceso/{$this->slug}";
     }
-
-
- 
 }
