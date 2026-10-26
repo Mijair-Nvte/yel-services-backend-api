@@ -102,7 +102,7 @@ class CourseCatalogController extends Controller
             'is_enrolled' => $isEnrolled,
             'resources' => $course->resources->map(fn ($r) => $formatResource($r, $isEnrolled)),
 
-            // 👈 AÑADIDO: use ($isEnrolled, $formatResource)
+       
             'modules' => $course->modules->map(function ($module) use ($isEnrolled, $formatResource) {
                 return [
                     'uid' => $module->uid,
@@ -110,7 +110,7 @@ class CourseCatalogController extends Controller
                     'description' => $module->description,
                     'resources' => $module->resources->map(fn ($r) => $formatResource($r, $isEnrolled)),
 
-                    // 👈 AÑADIDO: use ($isEnrolled, $formatResource)
+                 
                     'lessons' => $module->lessons->map(function ($lesson) use ($isEnrolled, $formatResource) {
                         $canWatch = $isEnrolled || $lesson->is_free_preview;
 

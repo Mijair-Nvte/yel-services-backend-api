@@ -531,7 +531,7 @@ Route::prefix('v1')->group(function () {
                 // Ver Cursos
                 Route::get('/courses', [OrgCourseController::class, 'index'])->middleware('can:view_courses');
                 Route::get('/courses/{courseUid}', [OrgCourseController::class, 'show'])->middleware('can:view_courses');
-
+                Route::get('/courses/{course_uid}/students', [OrgCourseController::class, 'getEnrolledStudents'])->middleware('can:view_courses');
                 // Gestionar Cursos (Configuración general y subida de portadas/previews públicas)
                 Route::middleware('can:manage_courses')->group(function () {
                     Route::post('/courses/presign', [OrgCourseController::class, 'presign']);
@@ -562,12 +562,13 @@ Route::prefix('v1')->group(function () {
                     Route::put('/modules/{moduleUid}/lessons/reorder', [OrgCourseContentController::class, 'reorderLessons']);
                     Route::put('/modules/{moduleUid}/lessons/{lessonUid}', [OrgCourseContentController::class, 'updateLesson']);
                     Route::delete('/modules/{moduleUid}/lessons/{lessonUid}', [OrgCourseContentController::class, 'destroyLesson']);
-               
+
                     Route::post('/resources/presign', [OrgCourseContentController::class, 'presignResource']);
                     Route::post('/resources', [OrgCourseContentController::class, 'storeResource']);
                     Route::delete('/resources/{resourceUid}', [OrgCourseContentController::class, 'destroyResource']);
-                    
-                    });
+                    Route::post('/enrollments/import', [OrgCourseController::class, 'importSubscribers']);
+
+                });
             });
 
             // ==========================================
