@@ -347,4 +347,5 @@ class EventRegistrationController extends Controller
             ],
         ], 200);
     }
+    
 }

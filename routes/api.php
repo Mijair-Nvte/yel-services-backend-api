@@ -288,6 +288,12 @@ Route::prefix('v1')->group(function () {
                     Route::post('/events/{eventUid}/registrations/import', [OrgEventRegistrationController::class, 'import']);
 
                     Route::delete('/events/{eventUid}/registrations/{registrationUid}', [OrgEventRegistrationController::class, 'destroy']);
+
+                    Route::put('/events/{eventUid}/registrations/{registrationUid}/contact-status', [OrgEventRegistrationController::class, 'updateContactStatus']);
+
+                    Route::post('/events/{eventUid}/registrations/export-pdf', [OrgEventRegistrationController::class, 'exportPdf']);
+                    Route::post('/events/{eventUid}/registrations/export-excel', [OrgEventRegistrationController::class, 'exportExcel']);
+
                 });
             });
 

@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api\Academy;
 
 use App\Http\Controllers\Controller;
+use App\Mail\CourseEnrollmentMail;
 use App\Models\OrgCompany;
 use App\Models\OrgCourse;
 use App\Models\OrgCourseEnrollment;
 use App\Services\Academy\CourseEnrollmentService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 
 class CourseCatalogController extends Controller
 {
@@ -18,7 +20,6 @@ class CourseCatalogController extends Controller
     {
         $company = OrgCompany::where('uid', $companyUid)->firstOrFail();
 
-        // 👈 CAMBIO: Intentamos obtener al usuario por Sanctum sin requerir autenticación
         $user = auth('sanctum')->user();
 
         $courses = OrgCourse::where('org_company_id', $company->id)
@@ -102,7 +103,6 @@ class CourseCatalogController extends Controller
             'is_enrolled' => $isEnrolled,
             'resources' => $course->resources->map(fn ($r) => $formatResource($r, $isEnrolled)),
 
-       
             'modules' => $course->modules->map(function ($module) use ($isEnrolled, $formatResource) {
                 return [
                     'uid' => $module->uid,
@@ -110,7 +110,6 @@ class CourseCatalogController extends Controller
                     'description' => $module->description,
                     'resources' => $module->resources->map(fn ($r) => $formatResource($r, $isEnrolled)),
 
-                 
                     'lessons' => $module->lessons->map(function ($lesson) use ($isEnrolled, $formatResource) {
                         $canWatch = $isEnrolled || $lesson->is_free_preview;
 
@@ -153,8 +152,22 @@ class CourseCatalogController extends Controller
             return response()->json(['message' => 'Este curso es de pago.'], 403);
         }
 
+        // 1. Inscribir al usuario (Core business logic)
         $enrollmentService->enrollUser($user->id, $course->id, $company->id, 'free');
 
+        // 2. Enviar el correo protegido con Try-Catch para que no rompa la aplicación
+        try {
+            Mail::to($user->email)->send(new CourseEnrollmentMail($user, $course, $company));
+        } catch (\Exception $e) {
+            // Registramos el error en el log de Laravel (storage/logs/laravel.log)
+            // pero NO interrumpimos la respuesta exitosa al usuario.
+            \Illuminate\Support\Facades\Log::error('Error al encolar correo de suscripción al curso: '.$e->getMessage(), [
+                'user_id' => $user->id,
+                'course_id' => $course->id,
+            ]);
+        }
+
+        // 3. Retornar éxito incondicional (la inscripción ya se hizo)
         return response()->json([
             'message' => 'Inscripción exitosa',
             'data' => ['is_enrolled' => true],

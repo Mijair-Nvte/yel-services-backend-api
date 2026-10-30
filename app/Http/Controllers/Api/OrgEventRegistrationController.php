@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exports\EventRegistrationsExport;
 use App\Http\Controllers\Concerns\AuthorizesWorkspace;
 use App\Http\Controllers\Controller;
 use App\Models\OrgCompany;
 use App\Models\OrgEvent;
 use App\Models\OrgEventRegistration;
 use App\Traits\HandlesCustomers;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class OrgEventRegistrationController extends Controller
 {
@@ -166,6 +169,131 @@ class OrgEventRegistrationController extends Controller
                 'success' => false,
                 'message' => 'Error al eliminar el registro del evento.',
             ], 500);
+        }
+    }
+
+    /**
+     * 📞 Actualizar el estado de contacto desde el panel del Call Center
+     */
+    public function updateContactStatus(Request $request, string $uid, string $eventUid, string $registrationUid)
+    {
+        $validated = $request->validate([
+            'contact_status' => 'required|string|max:50',
+            'notes' => 'nullable|string', // Opcional: aprovechar para actualizar notas del lead
+        ]);
+
+        // Opcional pero recomendado: Validar seguridad igual que en los otros métodos
+        $company = OrgCompany::where('uid', $uid)->firstOrFail();
+        $this->authorizeWorkspace($company);
+        $this->authorize('manage_calendar');
+
+        // Buscar directamente el registro
+        $registration = OrgEventRegistration::where('uid', $registrationUid)->firstOrFail();
+
+        // Actualizamos el estado y agregamos notas si vienen en la petición (ej. "Llamar en 1 semana")
+        $registration->update([
+            'contact_status' => $validated['contact_status'],
+            'notes' => $request->filled('notes')
+                ? $registration->notes."\n[".now()->format('Y-m-d H:i').'] '.$validated['notes']
+                : $registration->notes,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Estado de seguimiento actualizado correctamente.',
+            'data' => [
+                'uid' => $registration->uid,
+                'contact_status' => $registration->contact_status,
+                'notes' => $registration->notes,
+            ],
+        ]);
+    }
+
+    /**
+     * Exportar los registros (asistentes) a PDF
+     */
+    public function exportPdf(Request $request, string $uid, string $eventUid)
+    {
+        try {
+            $company = OrgCompany::where('uid', $uid)->firstOrFail();
+            $this->authorizeWorkspace($company);
+            $this->authorize('manage_calendar');
+
+            $event = OrgEvent::where('uid', $eventUid)
+                ->where('org_company_id', $company->id)
+                ->firstOrFail();
+
+            $request->validate([
+                'registration_ids' => 'required|array',
+                'registration_ids.*' => 'integer',
+            ]);
+
+            $registrations = OrgEventRegistration::with(['customer'])
+                ->where('org_company_id', $company->id)
+                ->where('org_event_id', $event->id)
+                ->whereIn('id', $request->registration_ids)
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            $logoPath = public_path('assets/img/logo-reportes.png');
+            $logoBase64 = '';
+            if (file_exists($logoPath)) {
+                $type = pathinfo($logoPath, PATHINFO_EXTENSION);
+                $data = file_get_contents($logoPath);
+                $logoBase64 = 'data:image/'.$type.';base64,'.base64_encode($data);
+            }
+
+            // Nota: Debes crear una vista blade 'resources/views/pdf/event-registrations-report.blade.php'
+            // similar a la de ventas pero iterando sobre $registrations.
+            $pdf = Pdf::loadView('pdf.event-registrations-report', [
+                'event' => $event,
+                'registrations' => $registrations,
+                'company' => $company,
+                'fechaReporte' => now()->format('d/m/Y H:i'),
+                'logoBase64' => $logoBase64,
+            ]);
+
+            return $pdf->download('reporte_asistentes.pdf');
+
+        } catch (\Exception $e) {
+            \Log::error('Error PDF Asistentes', ['error' => $e->getMessage()]);
+
+            return response()->json(['message' => 'Error al generar el PDF.'], 500);
+        }
+    }
+
+    /**
+     * Exportar los registros (asistentes) a Excel
+     */
+    public function exportExcel(Request $request, string $uid, string $eventUid)
+    {
+        try {
+            $company = OrgCompany::where('uid', $uid)->firstOrFail();
+            $this->authorizeWorkspace($company);
+            $this->authorize('manage_calendar');
+
+            $event = OrgEvent::where('uid', $eventUid)
+                ->where('org_company_id', $company->id)
+                ->firstOrFail();
+
+            $request->validate([
+                'registration_ids' => 'required|array',
+                'registration_ids.*' => 'integer',
+            ]);
+
+            $registrations = OrgEventRegistration::with(['customer'])
+                ->where('org_company_id', $company->id)
+                ->where('org_event_id', $event->id)
+                ->whereIn('id', $request->registration_ids)
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return Excel::download(new EventRegistrationsExport($registrations, $event), 'reporte_asistentes.xlsx');
+
+        } catch (\Exception $e) {
+            \Log::error('Error Excel Asistentes', ['error' => $e->getMessage()]);
+
+            return response()->json(['message' => 'Error al generar el Excel.'], 500);
         }
     }
 }

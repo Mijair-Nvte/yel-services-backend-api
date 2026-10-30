@@ -13,7 +13,7 @@ class OrgEventRegistration extends Model
     protected $fillable = [
         'uid', 'org_company_id', 'org_event_id', 'org_customer_id',
         'registered_at', 'is_new_lead', 'attended', 'ticket_quantity',
-        'source', 'notes'
+        'source', 'notes','contact_status',
     ];
 
     protected $casts = [

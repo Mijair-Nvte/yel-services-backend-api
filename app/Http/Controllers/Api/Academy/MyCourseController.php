@@ -67,7 +67,10 @@ class MyCourseController extends Controller
                     'description' => $course->description,
                     'cover_url' => $course->cover_url,
                     'modules_count' => $course->modules_count,
-                    'progress_percentage' => $progressPercentage, 
+                    'progress_percentage' => $progressPercentage,
+                    'is_free' => (bool) $course->is_free,
+                    'price' => $course->price,
+                    'is_enrolled' => true, 
                 ];
             });
 
@@ -130,6 +133,10 @@ class MyCourseController extends Controller
                 'title' => $course->title,
                 'description' => $course->description,
                 'cover_url' => $course->cover_url,
+                'preview_url' => $course->preview_url, 
+                'is_free' => (bool) $course->is_free,
+                'price' => $course->price,
+                'is_enrolled' => true,
                 'resources' => $course->resources->map(fn($r) => [
                     'uid' => $r->uid,
                     'title' => $r->title,
