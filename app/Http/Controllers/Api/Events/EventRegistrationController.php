@@ -49,6 +49,15 @@ class EventRegistrationController extends Controller
 
         // Opcional: Si necesitas guardar los UTMs en el metadata del cliente recién encontrado/creado
         $customer = OrgCustomer::find($customerId);
+
+       // 1. Calculamos correctamente si es nuevo
+        $isNewLead = false;
+        if ($customer && $customer->created_at) {
+            // Si el cliente fue creado hace 15 minutos o menos, es un lead nuevo
+            $isNewLead = $customer->created_at->diffInMinutes(Carbon::now()) <= 15;
+        }
+
+        // 2. Guardamos UTMs (Dejamos solo UN bloque, borramos el duplicado)
         if ($customer && ($request->input('utm_source') || $request->input('utm_medium') || $request->input('utm_campaign'))) {
             $currentMetadata = $customer->metadata ?? [];
             $customer->update([
@@ -59,6 +68,7 @@ class EventRegistrationController extends Controller
                 ]),
             ]);
         }
+    
 
         // 4. Registrar la asistencia al evento (o recuperar la existente)
         $registration = OrgEventRegistration::firstOrCreate(
@@ -69,7 +79,7 @@ class EventRegistrationController extends Controller
             [
                 'org_company_id' => $company->id,
                 'registered_at' => Carbon::now(),
-                'is_new_lead' => $customer->wasRecentlyCreated ?? false,
+             'is_new_lead' => $isNewLead,
                 'ticket_quantity' => 1,
                 'source' => $validated['source'] ?? 'Directo',
                 'notes' => $validated['notes'] ?? null,

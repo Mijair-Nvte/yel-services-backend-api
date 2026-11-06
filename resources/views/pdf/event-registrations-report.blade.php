@@ -167,6 +167,7 @@
                 <th>Fecha Registro</th>
                 <th>Asistente / Contacto</th>
                 <th>Origen</th>
+                <th>Tipo de Lead</th>
                 <th>Seguimiento</th>
                 <th>Asistencia</th>
                 <th>Notas</th>
@@ -182,6 +183,14 @@
                     <span class="contact-info">{{ $reg->customer->phone ?? 'Sin teléfono' }}</span>
                 </td>
                 <td>{{ $reg->source ?? 'Orgánico' }}</td>
+                <td>
+                    @if($reg->tipo_lead == 'Nuevo Lead')
+                        <span style="color: #d97706; font-weight: bold;">{{ $reg->tipo_lead }}</span> <!-- Opcional: darle un color ambarino -->
+                    @else
+                        <span style="color: #64748b;">{{ $reg->tipo_lead }}</span>
+                    @endif
+                </td>
+
                 <td>{{ $reg->contact_status ?? 'Sin contactar' }}</td>
               <td>
                     @if($reg->attended)
@@ -198,11 +207,19 @@
         </tbody>
     </table>
 
-  <div class="totals-section clearfix">
+ <div class="totals-section clearfix">
         <table class="totals-table">
             <tr>
                 <th>TOTAL REGISTRADOS:</th>
                 <td>{{ count($registrations) }}</td>
+            </tr>
+            <tr>
+                <th>NUEVOS LEADS (Evento):</th>
+                <td style="color: #d97706; font-weight: bold;">{{ $registrations->where('tipo_lead', 'Nuevo Lead')->count() }}</td>
+            </tr>
+            <tr>
+                <th>LEADS EXISTENTES (Retención):</th>
+                <td style="color: #64748b; font-weight: bold;">{{ $registrations->where('tipo_lead', 'Lead Existente')->count() }}</td>
             </tr>
             <tr>
                 <th>ASISTENCIAS CONFIRMADAS:</th>

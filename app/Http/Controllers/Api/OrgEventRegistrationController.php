@@ -214,7 +214,7 @@ class OrgEventRegistrationController extends Controller
     /**
      * Exportar los registros (asistentes) a PDF
      */
-    public function exportPdf(Request $request, string $uid, string $eventUid)
+   public function exportPdf(Request $request, string $uid, string $eventUid)
     {
         try {
             $company = OrgCompany::where('uid', $uid)->firstOrFail();
@@ -237,6 +237,19 @@ class OrgEventRegistrationController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->get();
 
+            // 👇 AQUÍ ESTÁ EL CÓDIGO QUE FALTABA PEGAR 👇
+            $registrations->each(function ($reg) {
+                $isNewLead = false;
+                if ($reg->customer && $reg->customer->created_at && $reg->created_at) {
+                    $diffInMinutes = $reg->created_at->diffInMinutes($reg->customer->created_at);
+                    $isNewLead = $diffInMinutes <= 15;
+                }
+                
+                // Usamos setAttribute para que el contador de la vista Blade lo pueda leer correctamente
+                $reg->setAttribute('tipo_lead', $isNewLead ? 'Nuevo Lead' : 'Lead Existente');
+            });
+            // 👆 HASTA AQUÍ 👆
+
             $logoPath = public_path('assets/img/logo-reportes.png');
             $logoBase64 = '';
             if (file_exists($logoPath)) {
@@ -245,8 +258,6 @@ class OrgEventRegistrationController extends Controller
                 $logoBase64 = 'data:image/'.$type.';base64,'.base64_encode($data);
             }
 
-            // Nota: Debes crear una vista blade 'resources/views/pdf/event-registrations-report.blade.php'
-            // similar a la de ventas pero iterando sobre $registrations.
             $pdf = Pdf::loadView('pdf.event-registrations-report', [
                 'event' => $event,
                 'registrations' => $registrations,
@@ -259,7 +270,6 @@ class OrgEventRegistrationController extends Controller
 
         } catch (\Exception $e) {
             \Log::error('Error PDF Asistentes', ['error' => $e->getMessage()]);
-
             return response()->json(['message' => 'Error al generar el PDF.'], 500);
         }
     }

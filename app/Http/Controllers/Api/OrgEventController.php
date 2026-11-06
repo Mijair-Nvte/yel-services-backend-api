@@ -113,7 +113,7 @@ class OrgEventController extends Controller
                 $event->banner_image = $file->storeAs("{$basePath}/banners", $fileName, 'r2_public');
             }
 
-           // PROCESAMIENTO DE RECURSOS
+            // PROCESAMIENTO DE RECURSOS
             $formattedResources = [];
             $resourcesList = $eventData['resources'] ?? [];
 
@@ -137,7 +137,7 @@ class OrgEventController extends Controller
                 }
 
                 if (! empty($fileUrl)) {
-                    // Si la URL que viene de la BD ya incluye el dominio (por registros viejos), 
+                    // Si la URL que viene de la BD ya incluye el dominio (por registros viejos),
                     // la limpiamos para dejar solo la ruta relativa.
                     $relativePath = str_contains($fileUrl, 'r2.dev') || str_starts_with($fileUrl, 'http')
                         ? str_replace(Storage::disk('r2_public')->url(''), '', $fileUrl)
@@ -253,7 +253,7 @@ class OrgEventController extends Controller
                 $updateData['banner_image'] = $file->storeAs("{$basePath}/banners", $fileName, 'r2_public');
             }
 
-    // PROCESAMIENTO DE RECURSOS
+            // PROCESAMIENTO DE RECURSOS
             $formattedResources = [];
             $resourcesList = $eventData['resources'] ?? [];
 
@@ -277,7 +277,7 @@ class OrgEventController extends Controller
                 }
 
                 if (! empty($fileUrl)) {
-                    // Si la URL que viene de la BD ya incluye el dominio (por registros viejos), 
+                    // Si la URL que viene de la BD ya incluye el dominio (por registros viejos),
                     // la limpiamos para dejar solo la ruta relativa.
                     $relativePath = str_contains($fileUrl, 'r2.dev') || str_starts_with($fileUrl, 'http')
                         ? str_replace(Storage::disk('r2_public')->url(''), '', $fileUrl)
@@ -330,13 +330,26 @@ class OrgEventController extends Controller
                 ->latest()
                 ->get()
                 ->map(function ($reg) {
+
+                    // 1. Lógica infalible basada en fechas
+                    $isNewLead = false;
+
+                    if ($reg->customer && $reg->customer->created_at) {
+                        // Calculamos la diferencia absoluta en minutos entre la creación del cliente y el registro
+                        $diffInMinutes = $reg->created_at->diffInMinutes($reg->customer->created_at);
+
+                        // Si la diferencia es menor o igual a 15 minutos, el lead entró por este evento
+                        $isNewLead = $diffInMinutes <= 15;
+                    }
+
                     return [
                         'id' => $reg->id,
                         'uid' => $reg->uid,
-                        // Mapeamos el estatus lógico según tu tabla
                         'status' => $reg->attended ? 'attended' : 'registered',
                         'created_at' => $reg->created_at,
                         'source' => $reg->source ?? 'Web Organica',
+                        // 2. Pasamos nuestra variable calculada dinámicamente
+                        'is_new_lead' => $isNewLead,
                         'customer' => $reg->customer ? [
                             'id' => $reg->customer->id,
                             'uid' => $reg->customer->uid,
@@ -344,7 +357,8 @@ class OrgEventController extends Controller
                             'last_name' => $reg->customer->last_name,
                             'email' => $reg->customer->email,
                             'phone' => $reg->customer->phone,
-                            'ghl_contact_id' => $reg->customer->contact_id ?? null, // Mapeado con tu columna contact_id de GHL
+                            'ghl_contact_id' => $reg->customer->contact_id ?? null,
+                            'created_at' => $reg->customer->created_at, // Opcional, por si lo quieres ver en el front
                         ] : null,
                     ];
                 });

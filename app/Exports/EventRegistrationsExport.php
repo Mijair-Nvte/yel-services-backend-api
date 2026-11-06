@@ -35,6 +35,7 @@ class EventRegistrationsExport implements FromCollection, ShouldAutoSize, WithHe
             'Correo',
             'Teléfono',
             'Origen (Campaña)',
+            'Tipo de Lead',
             'Estatus de Asistencia',
             'Estatus Call Center',
             'Notas',
@@ -47,12 +48,21 @@ class EventRegistrationsExport implements FromCollection, ShouldAutoSize, WithHe
             ? trim($registration->customer->first_name.' '.$registration->customer->last_name)
             : 'Cliente Desconocido';
 
+            $isNewLead = false;
+        if ($registration->customer && $registration->customer->created_at && $registration->created_at) {
+            $diffInMinutes = $registration->created_at->diffInMinutes($registration->customer->created_at);
+            $isNewLead = $diffInMinutes <= 15;
+        }
+
+        $tipoLead = $isNewLead ? 'Nuevo Lead' : 'Lead Existente';
+
         return [
             \Carbon\Carbon::parse($registration->created_at)->format('d/m/Y H:i'),
             $customerName,
             $registration->customer->email ?? 'N/A',
             $registration->customer->phone ?? 'N/A',
             $registration->source ?? 'Orgánico',
+            $tipoLead,
             $registration->attended ? 'Asistió' : 'Pendiente / Registrado',
             $registration->contact_status ?? 'Sin contactar',
             $registration->notes ?? 'Sin notas',
