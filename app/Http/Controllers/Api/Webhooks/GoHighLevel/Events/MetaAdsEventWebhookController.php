@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\OrgCompany;
 use App\Models\OrgEvent;
 use App\Models\OrgEventRegistration;
+use App\Models\OrgCustomer;
 use App\Traits\HandlesCustomers;
 use App\Jobs\GoHighLevel\Events\SendEventRegistrationToGHL; 
 use Illuminate\Support\Facades\Log;
