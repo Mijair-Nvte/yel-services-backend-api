@@ -43,6 +43,25 @@ class MetaAdsEventWebhookController extends Controller
             // 2. Procesamos al cliente (Busca o crea, asegurando datos limpios)
             $fullName = trim($firstName . ' ' . $lastName);
             
+            $cleanEmail = strtolower(trim($email));
+            $cleanPhone = trim($phone);
+
+            // 👇 CONSULTA PREVIA DIRECTA EN EL CONTROLADOR (Sin tocar el trait)
+            $existingCustomer = null;
+            if (!empty($ghlContactId)) {
+                $existingCustomer = OrgCustomer::where('org_company_id', $company->id)
+                    ->where('contact_id', $ghlContactId)
+                    ->first();
+            }
+            if (!$existingCustomer && !empty($cleanEmail)) {
+                $existingCustomer = OrgCustomer::where('org_company_id', $company->id)
+                    ->where('email', $cleanEmail)
+                    ->first();
+            }
+
+            // Si no existía en ninguna de las dos llaves, es un NUEVO LEAD
+            $isNewLead = !$existingCustomer;
+
             $customerId = $this->findOrCreateCustomer(
                 companyId: $company->id,
                 fullName: $fullName,
@@ -50,14 +69,6 @@ class MetaAdsEventWebhookController extends Controller
                 phone: $phone,
                 ghlContactId: $ghlContactId
             );
-
-            $customer = OrgCustomer::find($customerId);
-
-            // 🔥 CRITERIO GLOBAL DE NUEVO LEAD
-            $isNewLead = false;
-            if ($customer && $customer->created_at) {
-                $isNewLead = $customer->created_at->diffInSeconds(Carbon::now()) <= 10;
-            }
 
             // 3. Registramos al usuario en el evento (evitando duplicados)
             $registration = OrgEventRegistration::firstOrCreate(
@@ -94,8 +105,9 @@ class MetaAdsEventWebhookController extends Controller
             // ======================================================
             
             // Crear tag único: slug + fecha (ej: comprar-casa-llc-2026-09-24)
-          $ghlTag = $event->event_tag;
-          
+            $eventDate = Carbon::parse($event->starts_at)->format('Y-m-d');
+            $ghlTag = "{$event->slug}-{$eventDate}";
+
             $ghlPayload = [
                 'event'            => 'created',
                 'first_name'       => $firstName,

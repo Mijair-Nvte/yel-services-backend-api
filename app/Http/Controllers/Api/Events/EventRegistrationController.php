@@ -38,26 +38,28 @@ class EventRegistrationController extends Controller
 
         // 3. Unimos nombre y apellido para pasárselo al trait
         $fullName = trim(($validated['first_name'] ?? '').' '.($validated['last_name'] ?? ''));
+        $email = strtolower(trim($validated['email'] ?? ''));
+        $phone = $validated['phone'] ?? null;
 
-        // Usamos tu trait para buscar o crear el cliente y obtener su ID
+        $existingCustomer = OrgCustomer::where('org_company_id', $company->id)
+            ->where('email', $email)
+            ->first();
+
+        // Si no existía antes de llegar aquí, es un NUEVO LEAD
+        $isNewLead = ! $existingCustomer;
+
+        // Usamos tu trait original intacto para obtener el ID del cliente
         $customerId = $this->findOrCreateCustomer(
             companyId: $company->id,
             fullName: $fullName,
-            email: $validated['email'],
-            phone: $validated['phone'] ?? null
+            email: $email,
+            phone: $phone
         );
 
-        // Opcional: Si necesitas guardar los UTMs en el metadata del cliente recién encontrado/creado
+        // Ahora sí buscamos al cliente recién encontrado o creado
         $customer = OrgCustomer::find($customerId);
 
-      // 🔥 CRITERIO GLOBAL DE NUEVO LEAD:
-        // Si el cliente se acaba de crear hace menos de 10 segundos, es un lead totalmente nuevo para la empresa.
-        $isNewLead = false;
-        if ($customer && $customer->created_at) {
-            $isNewLead = $customer->created_at->diffInSeconds(Carbon::now()) <= 10;
-        }
-
-        // 2. Guardamos UTMs
+        // Guardamos UTMs si vienen en la petición
         if ($customer && ($request->input('utm_source') || $request->input('utm_medium') || $request->input('utm_campaign'))) {
             $currentMetadata = $customer->metadata ?? [];
             $customer->update([
@@ -68,8 +70,6 @@ class EventRegistrationController extends Controller
                 ]),
             ]);
         }
-    
-
         // 4. Registrar la asistencia al evento (o recuperar la existente)
         $registration = OrgEventRegistration::firstOrCreate(
             [
@@ -79,7 +79,7 @@ class EventRegistrationController extends Controller
             [
                 'org_company_id' => $company->id,
                 'registered_at' => Carbon::now(),
-           'is_new_lead' => $isNewLead,
+                'is_new_lead' => $isNewLead,
                 'ticket_quantity' => 1,
                 'source' => $validated['source'] ?? 'Directo',
                 'notes' => $validated['notes'] ?? null,
@@ -102,9 +102,9 @@ class EventRegistrationController extends Controller
         // 5. ENVIAR DATOS A GOHIGHLEVEL MEDIANTE JOB (COLA)
         // ======================================================
 
-        
+        // Crear tag único: slug + fecha (ej: comprar-casa-llc-2026-09-24)
         // Cambia esta línea en tu EventRegistrationController:
-      $ghlTag = $event->event_tag;
+        $ghlTag = $event->event_tag ?? 'event-'.Carbon::parse($event->starts_at)->format('Ymd');
 
         $eventsDomain = config('app.events_frontend_url', 'https://eventos.yaestoylisto.com');
         $magicLink = "{$eventsDomain}/access/{$registration->uid}";
@@ -357,5 +357,4 @@ class EventRegistrationController extends Controller
             ],
         ], 200);
     }
-    
 }
