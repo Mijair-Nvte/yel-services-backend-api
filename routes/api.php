@@ -293,6 +293,7 @@ Route::prefix('v1')->group(function () {
 
                     Route::post('/events/{eventUid}/registrations/export-pdf', [OrgEventRegistrationController::class, 'exportPdf']);
                     Route::post('/events/{eventUid}/registrations/export-excel', [OrgEventRegistrationController::class, 'exportExcel']);
+                    Route::post('/events/{eventUid}/sync-ghl-workflows', [OrgEventRegistrationController::class, 'syncGhlWorkflows']);
 
                 });
             });

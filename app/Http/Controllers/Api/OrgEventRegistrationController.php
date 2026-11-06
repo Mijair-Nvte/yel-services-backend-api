@@ -12,6 +12,8 @@ use App\Traits\HandlesCustomers;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 
 class OrgEventRegistrationController extends Controller
@@ -294,6 +296,73 @@ class OrgEventRegistrationController extends Controller
             \Log::error('Error Excel Asistentes', ['error' => $e->getMessage()]);
 
             return response()->json(['message' => 'Error al generar el Excel.'], 500);
+        }
+    }
+
+    public function syncGhlWorkflows(Request $request, string $uid, string $eventUid)
+    {
+        try {
+            $company = OrgCompany::where('uid', $uid)->firstOrFail();
+            $this->authorizeWorkspace($company);
+            $this->authorize('manage_calendar');
+
+            $request->validate([
+                'workflow_id_attended' => 'required|string',
+                'workflow_id_not_attended' => 'required|string',
+            ]);
+
+            $event = OrgEvent::where('uid', $eventUid)
+                ->where('org_company_id', $company->id)
+                ->firstOrFail();
+
+            $registrations = $event->registrations()->with('customer')->get();
+
+            $successCount = 0;
+            $errorCount = 0;
+           $ghlToken = config('services.ghl.token');
+
+            foreach ($registrations as $reg) {
+                $ghlContactId = $reg->customer->contact_id ?? null; // Tu mapeo del ID de GHL
+
+                if (! $ghlContactId) {
+                    continue; // Saltamos si el contacto no existe en GHL
+                }
+
+                // Seleccionamos el workflow dependiendo de si asistió o no
+                $workflowId = $reg->attended
+                    ? $request->workflow_id_attended
+                    : $request->workflow_id_not_attended;
+
+                // Consumo de la API de GoHighLevel
+                $response = Http::withToken($ghlToken)
+                    ->withHeaders([
+                        'Version' => 'v3',
+                        'Content-Type' => 'application/json',
+                    ])
+                    ->post("https://services.leadconnectorhq.com/contacts/{$ghlContactId}/workflow/{$workflowId}", [
+                        'eventStartTime' => now()->toIso8601String(),
+                    ]);
+
+                if ($response->successful()) {
+                    $successCount++;
+                } else {
+                    Log::error("Error sincronizando contacto {$ghlContactId} al workflow {$workflowId}", $response->json());
+                    $errorCount++;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Sincronización completada. {$successCount} enviados, {$errorCount} fallidos.",
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('🔥 ERROR AL SINCRONIZAR WORKFLOWS GHL: '.$e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al sincronizar con GoHighLevel.',
+            ], 500);
         }
     }
 }
