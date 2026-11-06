@@ -50,14 +50,14 @@ class EventRegistrationController extends Controller
         // Opcional: Si necesitas guardar los UTMs en el metadata del cliente recién encontrado/creado
         $customer = OrgCustomer::find($customerId);
 
-       // 1. Calculamos correctamente si es nuevo
+      // 🔥 CRITERIO GLOBAL DE NUEVO LEAD:
+        // Si el cliente se acaba de crear hace menos de 10 segundos, es un lead totalmente nuevo para la empresa.
         $isNewLead = false;
         if ($customer && $customer->created_at) {
-            // Si el cliente fue creado hace 15 minutos o menos, es un lead nuevo
-            $isNewLead = $customer->created_at->diffInMinutes(Carbon::now()) <= 15;
+            $isNewLead = $customer->created_at->diffInSeconds(Carbon::now()) <= 10;
         }
 
-        // 2. Guardamos UTMs (Dejamos solo UN bloque, borramos el duplicado)
+        // 2. Guardamos UTMs
         if ($customer && ($request->input('utm_source') || $request->input('utm_medium') || $request->input('utm_campaign'))) {
             $currentMetadata = $customer->metadata ?? [];
             $customer->update([
@@ -79,7 +79,7 @@ class EventRegistrationController extends Controller
             [
                 'org_company_id' => $company->id,
                 'registered_at' => Carbon::now(),
-             'is_new_lead' => $isNewLead,
+           'is_new_lead' => $isNewLead,
                 'ticket_quantity' => 1,
                 'source' => $validated['source'] ?? 'Directo',
                 'notes' => $validated['notes'] ?? null,
@@ -102,9 +102,9 @@ class EventRegistrationController extends Controller
         // 5. ENVIAR DATOS A GOHIGHLEVEL MEDIANTE JOB (COLA)
         // ======================================================
 
-        // Crear tag único: slug + fecha (ej: comprar-casa-llc-2026-09-24)
+        
         // Cambia esta línea en tu EventRegistrationController:
-        $ghlTag = $event->event_tag ?? 'event-'.Carbon::parse($event->starts_at)->format('Ymd');
+      $ghlTag = $event->event_tag;
 
         $eventsDomain = config('app.events_frontend_url', 'https://eventos.yaestoylisto.com');
         $magicLink = "{$eventsDomain}/access/{$registration->uid}";

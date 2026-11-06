@@ -51,6 +51,14 @@ class MetaAdsEventWebhookController extends Controller
                 ghlContactId: $ghlContactId
             );
 
+            $customer = OrgCustomer::find($customerId);
+
+            // 🔥 CRITERIO GLOBAL DE NUEVO LEAD
+            $isNewLead = false;
+            if ($customer && $customer->created_at) {
+                $isNewLead = $customer->created_at->diffInSeconds(Carbon::now()) <= 10;
+            }
+
             // 3. Registramos al usuario en el evento (evitando duplicados)
             $registration = OrgEventRegistration::firstOrCreate(
                 [
@@ -60,6 +68,7 @@ class MetaAdsEventWebhookController extends Controller
                 [
                     'org_company_id'  => $company->id,
                     'registered_at'   => Carbon::now(),
+                    'is_new_lead'     => $isNewLead,
                     'ticket_quantity' => 1,
                     'source'          => 'Meta Ads',
                     'notes'           => 'Registrado desde Formulario de Facebook Ads',
@@ -85,9 +94,8 @@ class MetaAdsEventWebhookController extends Controller
             // ======================================================
             
             // Crear tag único: slug + fecha (ej: comprar-casa-llc-2026-09-24)
-            $eventDate = Carbon::parse($event->starts_at)->format('Y-m-d');
-            $ghlTag = "{$event->slug}-{$eventDate}";
-
+          $ghlTag = $event->event_tag;
+          
             $ghlPayload = [
                 'event'            => 'created',
                 'first_name'       => $firstName,
