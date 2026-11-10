@@ -105,9 +105,7 @@ class MetaAdsEventWebhookController extends Controller
             // 4. SI ES NUEVO, ENVIAMOS DATOS DE VUELTA A GOHIGHLEVEL
             // ======================================================
             
-            // Crear tag único: slug + fecha (ej: comprar-casa-llc-2026-09-24)
-            $eventDate = Carbon::parse($event->starts_at)->format('Y-m-d');
-            $ghlTag = "{$event->slug}-{$eventDate}";
+           $ghlTag = $event->event_tag;
 
             $ghlPayload = [
                 'event'            => 'created',
@@ -115,7 +113,7 @@ class MetaAdsEventWebhookController extends Controller
                 'last_name'        => $lastName,
                 'email'            => $email,
                 'phone'            => $phone ?? '',
-                'tags'             => [$ghlTag], 
+               'tags'             => [$ghlTag],
                 'source'           => 'Facebook Ads',
                 'utm_source'       => $request->input('utm_source') ?? 'Facebook Ads',
                 'utm_medium'       => $request->input('utm_medium') ?? 'cpc',
