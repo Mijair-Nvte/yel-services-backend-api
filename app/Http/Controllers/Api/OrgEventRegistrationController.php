@@ -211,10 +211,7 @@ class OrgEventRegistrationController extends Controller
         ]);
     }
 
-    /**
-     * Exportar los registros (asistentes) a PDF
-     */
-   public function exportPdf(Request $request, string $uid, string $eventUid)
+    public function exportPdf(Request $request, string $uid, string $eventUid)
     {
         try {
             $company = OrgCompany::where('uid', $uid)->firstOrFail();
@@ -237,18 +234,10 @@ class OrgEventRegistrationController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->get();
 
-            // 👇 AQUÍ ESTÁ EL CÓDIGO QUE FALTABA PEGAR 👇
+            // 💡 Usamos directamente el campo de la BD
             $registrations->each(function ($reg) {
-                $isNewLead = false;
-                if ($reg->customer && $reg->customer->created_at && $reg->created_at) {
-                    $diffInMinutes = $reg->created_at->diffInMinutes($reg->customer->created_at);
-                    $isNewLead = $diffInMinutes <= 15;
-                }
-                
-                // Usamos setAttribute para que el contador de la vista Blade lo pueda leer correctamente
-                $reg->setAttribute('tipo_lead', $isNewLead ? 'Nuevo Lead' : 'Lead Existente');
+                $reg->setAttribute('tipo_lead', $reg->is_new_lead ? 'Nuevo Lead' : 'Lead Existente');
             });
-            // 👆 HASTA AQUÍ 👆
 
             $logoPath = public_path('assets/img/logo-reportes.png');
             $logoBase64 = '';
@@ -270,13 +259,11 @@ class OrgEventRegistrationController extends Controller
 
         } catch (\Exception $e) {
             \Log::error('Error PDF Asistentes', ['error' => $e->getMessage()]);
+
             return response()->json(['message' => 'Error al generar el PDF.'], 500);
         }
     }
 
-    /**
-     * Exportar los registros (asistentes) a Excel
-     */
     public function exportExcel(Request $request, string $uid, string $eventUid)
     {
         try {
@@ -299,6 +286,11 @@ class OrgEventRegistrationController extends Controller
                 ->whereIn('id', $request->registration_ids)
                 ->orderBy('created_at', 'desc')
                 ->get();
+
+            // 💡 Igualmente aquí para el Excel
+            $registrations->each(function ($reg) {
+                $reg->setAttribute('tipo_lead', $reg->is_new_lead ? 'Nuevo Lead' : 'Lead Existente');
+            });
 
             return Excel::download(new EventRegistrationsExport($registrations, $event), 'reporte_asistentes.xlsx');
 
@@ -329,7 +321,7 @@ class OrgEventRegistrationController extends Controller
 
             $successCount = 0;
             $errorCount = 0;
-           $ghlToken = config('services.ghl.token');
+            $ghlToken = config('services.ghl.token');
 
             foreach ($registrations as $reg) {
                 $ghlContactId = $reg->customer->contact_id ?? null; // Tu mapeo del ID de GHL
