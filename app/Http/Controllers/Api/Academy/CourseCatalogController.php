@@ -100,6 +100,7 @@ class CourseCatalogController extends Controller
             'preview_url' => $course->preview_url,
             'is_free' => (bool) $course->is_free,
             'price' => $course->price,
+            'revenuecat_entitlement_id' => $course->revenuecat_entitlement_id,
             'is_enrolled' => $isEnrolled,
             'resources' => $course->resources->map(fn ($r) => $formatResource($r, $isEnrolled)),
 
