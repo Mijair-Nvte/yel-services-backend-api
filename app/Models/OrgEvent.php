@@ -34,6 +34,7 @@ class OrgEvent extends Model
         'ends_at',
         'is_all_day',
         'is_active',
+        'status',
     ];
 
     protected $casts = [

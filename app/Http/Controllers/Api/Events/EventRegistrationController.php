@@ -36,6 +36,13 @@ class EventRegistrationController extends Controller
             ->where('is_active', true)
             ->firstOrFail();
 
+        if ($event->status === 'completed' || $event->status === 'cancelled') {
+            return response()->json([
+                'success' => false,
+                'message' => 'El evento ya ha finalizado y no se aceptan nuevos registros.',
+            ], 403);
+        }
+
         // 3. Unimos nombre y apellido para pasárselo al trait
         $fullName = trim(($validated['first_name'] ?? '').' '.($validated['last_name'] ?? ''));
         $email = strtolower(trim($validated['email'] ?? ''));
@@ -104,7 +111,7 @@ class EventRegistrationController extends Controller
 
         // Crear tag único: slug + fecha (ej: comprar-casa-llc-2026-09-24)
         // Cambia esta línea en tu EventRegistrationController:
-$ghlTag = $event->event_tag;
+        $ghlTag = $event->event_tag;
 
         $eventsDomain = config('app.events_frontend_url', 'https://eventos.yaestoylisto.com');
         $magicLink = "{$eventsDomain}/access/{$registration->uid}";
@@ -188,7 +195,7 @@ $ghlTag = $event->event_tag;
                 $eventsDomain = config('app.events_frontend_url', 'https://eventos.yaestoylisto.com');
                 $magicLink = "{$eventsDomain}/api/v1/events/access/{$registration->uid}";
 
-$ghlTag = $event->event_tag;
+                $ghlTag = $event->event_tag;
 
                 $ghlPayload = [
                     'event' => 'updated',

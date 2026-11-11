@@ -74,7 +74,7 @@ class OrgEventController extends Controller
             $this->authorize('manage_calendar');
 
             $eventDataRaw = $request->input('event_data');
-            \Log::info('3. RAW event_data recibido:', [$eventDataRaw]);
+        
 
             $eventData = json_decode($eventDataRaw, true);
 
@@ -97,6 +97,7 @@ class OrgEventController extends Controller
                 'starts_at' => $eventData['starts_at'],
                 'ends_at' => $eventData['ends_at'] ?? null,
                 'is_all_day' => $eventData['is_all_day'] ?? false,
+                'status' => $eventData['status'] ?? 'active',
             ]);
 
             $basePath = "{$company->uid}/events/{$event->uid}";
@@ -228,6 +229,7 @@ class OrgEventController extends Controller
                 'starts_at' => $eventData['starts_at'],
                 'ends_at' => $eventData['ends_at'] ?? null,
                 'is_all_day' => $eventData['is_all_day'] ?? false,
+                'status' => $eventData['status'] ?? $event->status,
             ];
 
             // Ruta base estandarizada
