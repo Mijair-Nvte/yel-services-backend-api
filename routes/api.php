@@ -318,6 +318,34 @@ Route::prefix('v1')->group(function () {
             });
 
             // ==========================================
+            // 📊 PROYECTOS / PROJECTS
+            // ==========================================
+            Route::group([], function () {
+                // Ver Proyectos
+                Route::middleware('can:view_projects')->group(function () {
+                    Route::get('/projects', [\App\Http\Controllers\Api\OrgProjectController::class, 'index']);
+                    Route::get('/projects/{projectUid}', [\App\Http\Controllers\Api\OrgProjectController::class, 'show']);
+                });
+
+                // Gestionar Proyectos
+                Route::middleware('can:manage_projects')->group(function () {
+                    Route::post('/projects', [\App\Http\Controllers\Api\OrgProjectController::class, 'store']);
+                    Route::put('/projects/{projectUid}', [\App\Http\Controllers\Api\OrgProjectController::class, 'update']);
+                    Route::delete('/projects/{projectUid}', [\App\Http\Controllers\Api\OrgProjectController::class, 'destroy']);
+                });
+            });
+            
+            // ==========================================
+            // 📊 TAREAS DE PROYECTOS / PROJECT TASKS
+            // ==========================================
+            Route::prefix('projects/{projectUid}')->group(function () {
+                Route::get('/tasks', [\App\Http\Controllers\Api\OrgProjectTaskController::class, 'index']);
+                Route::post('/tasks', [\App\Http\Controllers\Api\OrgProjectTaskController::class, 'store']);
+                Route::put('/tasks/{taskUid}', [\App\Http\Controllers\Api\OrgProjectTaskController::class, 'update']);
+                Route::delete('/tasks/{taskUid}', [\App\Http\Controllers\Api\OrgProjectTaskController::class, 'destroy']);
+            });
+            
+            // ==========================================
             // 🌐 ENLACES DE LA COMPAÑÍA (Link Block)
             // ==========================================
             Route::group([], function () {

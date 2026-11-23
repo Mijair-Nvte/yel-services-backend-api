@@ -20,6 +20,7 @@ class EventCatalogController extends Controller
         // 1. Filtramos solo los eventos futuros (partiendo de ahora), ordenados del más cercano al más lejano, limitando a 5
         $events = OrgEvent::where('org_company_id', $company->id)
             ->where('is_active', true)
+              ->publiclyListed()  
             ->where('starts_at', '>=', now()) // Solo eventos vigentes/futuros
             ->orderBy('starts_at', 'asc')     // El más próximo primero
             ->take(5)                         // Máximo 5 registros

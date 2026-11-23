@@ -46,6 +46,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return [
             'email_verified_at' => 'datetime',
+            'password_set_at' => 'datetime',
             'password' => 'hashed',
         ];
     }
@@ -216,7 +217,7 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     // Accessor para calcular el nivel de préstamos del MES ACTUAL
-  public function getCurrentLoanTierAttribute()
+    public function getCurrentLoanTierAttribute()
     {
         $companyUserPivot = $this->companies()->first();
         $companyId = $companyUserPivot ? $companyUserPivot->org_company_id : 1;
@@ -237,12 +238,12 @@ class User extends Authenticatable implements MustVerifyEmail
             ->where('min_monthly_volume', '<=', $currentMonthVolume)
             ->where(function ($query) use ($currentMonthVolume) {
                 $query->whereNull('max_monthly_volume')
-                      ->orWhere('max_monthly_volume', '>=', $currentMonthVolume);
+                    ->orWhere('max_monthly_volume', '>=', $currentMonthVolume);
             })
             ->first();
 
         // Si no hay nivel, devolvemos null
-        if (!$currentTier) {
+        if (! $currentTier) {
             return null;
         }
 
@@ -260,5 +261,14 @@ class User extends Authenticatable implements MustVerifyEmail
             'next_tier_name' => $nextTier ? $nextTier->name : null,
             'next_tier_min_volume' => $nextTier ? (float) $nextTier->min_monthly_volume : null,
         ];
+    }
+
+    /**
+     * La cuenta existe pero el usuario todavía no ha creado su contraseña
+     * (por ejemplo, alumnos importados de Kajabi).
+     */
+    public function requiresPasswordSetup(): bool
+    {
+        return is_null($this->password_set_at);
     }
 }

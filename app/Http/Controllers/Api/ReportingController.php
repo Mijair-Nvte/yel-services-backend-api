@@ -161,19 +161,23 @@ class ReportingController extends Controller
         $totalEvents = $events->count();
         $totalRegistrations = $registrations->count();
         $attendedCount = $registrations->where('attended', 1)->count();
+        $missedCount = $totalRegistrations - $attendedCount;
 
         $attendanceRate = $totalRegistrations > 0
             ? round(($attendedCount / $totalRegistrations) * 100, 1)
             : 0;
 
-        // 4. Top Eventos (Barras)
+        // 4. Top Eventos (Barras) - AHORA CON REGISTROS VS ASISTENCIAS
         $topEventsData = [];
         foreach ($events as $event) {
-            $count = $registrations->where('org_event_id', $event->id)->count();
+            $eventRegs = $registrations->where('org_event_id', $event->id);
+            $count = $eventRegs->count();
+
             if ($count > 0) {
                 $topEventsData[] = [
                     'name' => mb_strimwidth($event->title, 0, 15, '...'), // Truncar títulos largos
                     'registrations' => $count,
+                    'attended' => $eventRegs->where('attended', 1)->count(), // 👈 NUEVO DATO
                 ];
             }
         }
@@ -190,7 +194,6 @@ class ReportingController extends Controller
         ];
 
         // 6. Gráfica: Asistencia (Pie)
-        $missedCount = $totalRegistrations - $attendedCount;
         $attendancePie = [
             ['name' => 'Asistieron', 'value' => $attendedCount, 'color' => '#10b981'], // Emerald
             ['name' => 'No Asistieron', 'value' => $missedCount, 'color' => '#f43f5e'], // Rose
@@ -210,17 +213,37 @@ class ReportingController extends Controller
             $i++;
         }
 
+        // 8. 👈 NUEVO: Gráfica de Estado de Seguimiento (contact_status)
+        $statusData = [];
+        $groupedStatus = $registrations->groupBy(function ($reg) {
+            return empty($reg->contact_status) ? 'Sin contactar' : $reg->contact_status;
+        });
+        $statusColors = ['#94a3b8', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6'];
+        $j = 0;
+        foreach ($groupedStatus as $statusName => $group) {
+            $statusData[] = [
+                'name' => $statusName,
+                'value' => $group->count(),
+                'color' => $statusColors[$j % count($statusColors)],
+            ];
+            $j++;
+        }
+
         return [
             'label' => $start->format('d M, Y').' - '.$end->format('d M, Y'),
             'kpis' => [
                 'total_events' => $totalEvents,
                 'total_registrations' => $totalRegistrations,
+                'total_attended' => $attendedCount,
                 'attendance_rate' => $attendanceRate,
+                'new_leads' => $newCount,          
+                'existing_leads' => $existingCount,
             ],
             'topEventsChart' => $topEventsData,
             'leadTypePie' => $leadTypePie,
             'attendancePie' => $attendancePie,
             'sourcesPie' => $sourcesData,
+            'contactStatusPie' => $statusData, // 👈 NUEVA GRÁFICA
         ];
     }
 
@@ -324,18 +347,16 @@ class ReportingController extends Controller
         ];
     }
 
-
-
     /**
      * 📊 Reporte de Préstamos (Loans)
      */
     public function loans(Request $request, string $uid)
     {
         $company = OrgCompany::where('uid', $uid)->firstOrFail();
-        
+
         $start = Carbon::parse($request->query('start', now()->startOfMonth()->toDateString()))->startOfDay();
         $end = Carbon::parse($request->query('end', now()->endOfMonth()->toDateString()))->endOfDay();
-        
+
         $response = ['primary' => $this->getLoansMetricsForPeriod($company->id, $start, $end), 'comparison' => null];
 
         if ($request->filled('compare_start') && $request->filled('compare_end')) {
@@ -367,33 +388,33 @@ class ReportingController extends Controller
             'Open' => '#3b82f6',    // Blue
             'Won' => '#10b981',     // Emerald
             'Lost' => '#f43f5e',    // Rose
-            'Abandon' => '#94a3b8'  // Slate
+            'Abandon' => '#94a3b8',  // Slate
         ];
-        
+
         $pipelinePie = [];
-        foreach($statusGroup as $status => $group) {
+        foreach ($statusGroup as $status => $group) {
             $pipelinePie[] = [
                 'name' => $status,
                 'value' => $group->count(),
-                'color' => $statusColors[$status] ?? '#cbd5e1'
+                'color' => $statusColors[$status] ?? '#cbd5e1',
             ];
         }
 
         // 4. Top Tipos de Préstamo por Volumen (Gráfica de Barras)
         $typeGroup = $loans->groupBy('loan_type');
         $loanTypesData = [];
-        foreach($typeGroup as $type => $group) {
+        foreach ($typeGroup as $type => $group) {
             $loanTypesData[] = [
                 'name' => mb_strimwidth($type ?: 'No especificado', 0, 15, '...'),
                 'volume' => (float) $group->sum('estimated_amount'),
-                'count' => $group->count()
+                'count' => $group->count(),
             ];
         }
-        usort($loanTypesData, fn($a, $b) => $b['volume'] <=> $a['volume']);
+        usort($loanTypesData, fn ($a, $b) => $b['volume'] <=> $a['volume']);
         $loanTypesData = array_slice($loanTypesData, 0, 5); // Top 5
 
         return [
-            'label' => $start->format('d M, Y') . ' - ' . $end->format('d M, Y'),
+            'label' => $start->format('d M, Y').' - '.$end->format('d M, Y'),
             'kpis' => [
                 'total_applications' => $totalApplications,
                 'total_volume' => $totalEstimatedVolume,
@@ -401,12 +422,9 @@ class ReportingController extends Controller
                 'total_commissions' => $totalCommissions,
             ],
             'pipelinePie' => $pipelinePie,
-            'loanTypesChart' => $loanTypesData
+            'loanTypesChart' => $loanTypesData,
         ];
     }
-
-
-
 
     /**
      * 📊 Reporte de Seguros (Insurance)
@@ -414,10 +432,10 @@ class ReportingController extends Controller
     public function insurance(Request $request, string $uid)
     {
         $company = OrgCompany::where('uid', $uid)->firstOrFail();
-        
+
         $start = Carbon::parse($request->query('start', now()->startOfMonth()->toDateString()))->startOfDay();
         $end = Carbon::parse($request->query('end', now()->endOfMonth()->toDateString()))->endOfDay();
-        
+
         $response = ['primary' => $this->getInsuranceMetricsForPeriod($company->id, $start, $end), 'comparison' => null];
 
         if ($request->filled('compare_start') && $request->filled('compare_end')) {
@@ -441,9 +459,9 @@ class ReportingController extends Controller
         $totalApplications = $insurances->count();
         $wonApplicationsCount = $insurances->where('status', 'Won')->count();
         $totalCommissions = $insurances->whereIn('commission_status', ['pending', 'paid'])->sum('commission_amount');
-        
-        $conversionRate = $totalApplications > 0 
-            ? round(($wonApplicationsCount / $totalApplications) * 100, 1) 
+
+        $conversionRate = $totalApplications > 0
+            ? round(($wonApplicationsCount / $totalApplications) * 100, 1)
             : 0;
 
         // 3. Gráfica de Pastel: Estado del Pipeline
@@ -452,33 +470,33 @@ class ReportingController extends Controller
             'Open' => '#8b5cf6',    // Violet
             'Won' => '#10b981',     // Emerald
             'Lost' => '#f43f5e',    // Rose
-            'Abandon' => '#94a3b8'  // Slate
+            'Abandon' => '#94a3b8',  // Slate
         ];
-        
+
         $pipelinePie = [];
-        foreach($statusGroup as $status => $group) {
+        foreach ($statusGroup as $status => $group) {
             $pipelinePie[] = [
                 'name' => $status,
                 'value' => $group->count(),
-                'color' => $statusColors[$status] ?? '#cbd5e1'
+                'color' => $statusColors[$status] ?? '#cbd5e1',
             ];
         }
 
         // 4. Top Tipos de Seguros (Gráfica de Barras por Cantidad de Aplicaciones)
         $typeGroup = $insurances->groupBy('insurance_type');
         $insuranceTypesData = [];
-        foreach($typeGroup as $type => $group) {
+        foreach ($typeGroup as $type => $group) {
             $insuranceTypesData[] = [
                 'name' => mb_strimwidth($type ?: 'No especificado', 0, 15, '...'),
-                'count' => $group->count()
+                'count' => $group->count(),
             ];
         }
         // Ordenar por cantidad de pólizas (mayor a menor)
-        usort($insuranceTypesData, fn($a, $b) => $b['count'] <=> $a['count']);
+        usort($insuranceTypesData, fn ($a, $b) => $b['count'] <=> $a['count']);
         $insuranceTypesData = array_slice($insuranceTypesData, 0, 5); // Top 5
 
         return [
-            'label' => $start->format('d M, Y') . ' - ' . $end->format('d M, Y'),
+            'label' => $start->format('d M, Y').' - '.$end->format('d M, Y'),
             'kpis' => [
                 'total_applications' => $totalApplications,
                 'won_applications' => $wonApplicationsCount,
@@ -486,29 +504,38 @@ class ReportingController extends Controller
                 'total_commissions' => $totalCommissions,
             ],
             'pipelinePie' => $pipelinePie,
-            'insuranceTypesChart' => $insuranceTypesData
+            'insuranceTypesChart' => $insuranceTypesData,
         ];
     }
 
-
- /**
+    /**
      * 🤖 Generar Resumen y Sugerencias con Inteligencia Artificial
      */
     public function generateAiInsights(Request $request, string $uid)
     {
         $company = OrgCompany::where('uid', $uid)->firstOrFail();
-        
+
         $start = Carbon::parse($request->query('start', now()->startOfMonth()->toDateString()))->startOfDay();
         $end = Carbon::parse($request->query('end', now()->endOfMonth()->toDateString()))->endOfDay();
-        
+
+        $eventsData = $this->getEventMetricsForPeriod($company->id, $start, $end);
+        $contactsData = $this->getMetricsForPeriod($company->id, $start, $end);
+
         // 1. Recopilar la información de TODAS las secciones
         $primaryData = [
-            'periodo' => $start->format('d M, Y') . ' - ' . $end->format('d M, Y'),
-            'contactos_y_leads' => $this->getMetricsForPeriod($company->id, $start, $end)['kpis'],
-            'eventos_y_asistencia' => $this->getEventMetricsForPeriod($company->id, $start, $end)['kpis'],
+            'periodo' => $start->format('d M, Y').' - '.$end->format('d M, Y'),
+            'contactos_y_leads' => [
+                'kpis' => $contactsData['kpis'],
+                'fuentes' => $contactsData['pieChart'],
+            ],
+            'eventos_y_asistencia' => [
+                'kpis' => $eventsData['kpis'],
+                'fuentes_de_trafico' => $eventsData['sourcesPie'],
+                'estado_seguimiento_callcenter' => $eventsData['contactStatusPie'],
+            ],
             'ventas_y_partners' => $this->getSalesMetricsForPeriod($company->id, $start, $end)['kpis'],
-            'prestamos_e_hipotecas' => $this->getLoansMetricsForPeriod($company->id, $start, $end)['kpis'], 
-            'seguros_y_polizas' => $this->getInsuranceMetricsForPeriod($company->id, $start, $end)['kpis'], 
+            'prestamos_e_hipotecas' => $this->getLoansMetricsForPeriod($company->id, $start, $end)['kpis'],
+            'seguros_y_polizas' => $this->getInsuranceMetricsForPeriod($company->id, $start, $end)['kpis'],
         ];
 
         // 2. Recopilar comparativa si existe
@@ -516,11 +543,21 @@ class ReportingController extends Controller
         if ($request->filled('compare_start') && $request->filled('compare_end')) {
             $compareStart = Carbon::parse($request->query('compare_start'))->startOfDay();
             $compareEnd = Carbon::parse($request->query('compare_end'))->endOfDay();
-            
+
+            $compEventsData = $this->getEventMetricsForPeriod($company->id, $compareStart, $compareEnd);
+            $compContactsData = $this->getMetricsForPeriod($company->id, $compareStart, $compareEnd);
+
             $comparisonData = [
-                'periodo' => $compareStart->format('d M, Y') . ' - ' . $compareEnd->format('d M, Y'),
-                'contactos_y_leads' => $this->getMetricsForPeriod($company->id, $compareStart, $compareEnd)['kpis'],
-                'eventos_y_asistencia' => $this->getEventMetricsForPeriod($company->id, $compareStart, $compareEnd)['kpis'],
+                'periodo' => $compareStart->format('d M, Y').' - '.$compareEnd->format('d M, Y'),
+                'contactos_y_leads' => [
+                    'kpis' => $compContactsData['kpis'],
+                    'fuentes' => $compContactsData['pieChart'],
+                ],
+                'eventos_y_asistencia' => [
+                    'kpis' => $compEventsData['kpis'],
+                    'fuentes_de_trafico' => $compEventsData['sourcesPie'],
+                    'estado_seguimiento_callcenter' => $compEventsData['contactStatusPie'],
+                ],
                 'ventas_y_partners' => $this->getSalesMetricsForPeriod($company->id, $compareStart, $compareEnd)['kpis'],
                 'prestamos_e_hipotecas' => $this->getLoansMetricsForPeriod($company->id, $compareStart, $compareEnd)['kpis'],
                 'seguros_y_polizas' => $this->getInsuranceMetricsForPeriod($company->id, $compareStart, $compareEnd)['kpis'],
@@ -528,7 +565,7 @@ class ReportingController extends Controller
         }
 
         // 3. Prompt Estricto: Obligamos a la IA a recorrer las 5 áreas
-        $systemPrompt = "Eres un Chief Revenue Officer (CRO) experto analizando datos para YEL Group. 
+        $systemPrompt = 'Eres un Chief Revenue Officer (CRO) experto analizando datos para YEL Group. 
         Tu objetivo es analizar los KPIs operativos y financieros proporcionados en formato JSON y entregar un resumen ejecutivo brillante.
         
         Reglas ESTRICTAS de formato y contenido:
@@ -545,13 +582,13 @@ class ReportingController extends Controller
            - Ventas y Comisiones
            - Préstamos e Hipotecas (Pipeline y volumen)
            - Seguros (Pólizas y conversión)
-        3. 💡 **3 Sugerencias Estratégicas**: Acciones claras y ejecutables para mejorar las áreas con menor rendimiento basadas en los datos actuales.";
+        3. 💡 **3 Sugerencias Estratégicas**: Acciones claras y ejecutables para mejorar las áreas con menor rendimiento basadas en los datos actuales.';
 
-        $userData = "Analiza los siguientes datos de rendimiento:\n\n" . 
-                    "DATOS ACTUALES:\n" . json_encode($primaryData, JSON_PRETTY_PRINT);
-        
+        $userData = "Analiza los siguientes datos de rendimiento:\n\n".
+                    "DATOS ACTUALES:\n".json_encode($primaryData, JSON_PRETTY_PRINT);
+
         if ($comparisonData) {
-            $userData .= "\n\nDATOS DEL PERIODO ANTERIOR (COMPARATIVA):\n" . json_encode($comparisonData, JSON_PRETTY_PRINT);
+            $userData .= "\n\nDATOS DEL PERIODO ANTERIOR (COMPARATIVA):\n".json_encode($comparisonData, JSON_PRETTY_PRINT);
         }
 
         try {
@@ -561,19 +598,19 @@ class ReportingController extends Controller
                     ['role' => 'system', 'content' => $systemPrompt],
                     ['role' => 'user', 'content' => $userData],
                 ],
-                'temperature' => 0.4, 
-                'max_tokens' => 1000, 
+                'temperature' => 0.4,
+                'max_tokens' => 1000,
             ]);
 
             return response()->json([
                 'success' => true,
-                'insights' => $response->choices[0]->message->content
+                'insights' => $response->choices[0]->message->content,
             ], 200);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al generar el análisis de IA: ' . $e->getMessage()
+                'message' => 'Error al generar el análisis de IA: '.$e->getMessage(),
             ], 500);
         }
     }

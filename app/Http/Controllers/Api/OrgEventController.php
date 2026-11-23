@@ -74,7 +74,6 @@ class OrgEventController extends Controller
             $this->authorize('manage_calendar');
 
             $eventDataRaw = $request->input('event_data');
-        
 
             $eventData = json_decode($eventDataRaw, true);
 
@@ -98,6 +97,7 @@ class OrgEventController extends Controller
                 'ends_at' => $eventData['ends_at'] ?? null,
                 'is_all_day' => $eventData['is_all_day'] ?? false,
                 'status' => $eventData['status'] ?? 'active',
+                'is_private' => filter_var($eventData['is_private'] ?? false, FILTER_VALIDATE_BOOLEAN),
             ]);
 
             $basePath = "{$company->uid}/events/{$event->uid}";
@@ -230,6 +230,9 @@ class OrgEventController extends Controller
                 'ends_at' => $eventData['ends_at'] ?? null,
                 'is_all_day' => $eventData['is_all_day'] ?? false,
                 'status' => $eventData['status'] ?? $event->status,
+                'is_private' => array_key_exists('is_private', $eventData)
+                   ? filter_var($eventData['is_private'], FILTER_VALIDATE_BOOLEAN)
+                   : $event->is_private,
             ];
 
             // Ruta base estandarizada
@@ -339,8 +342,10 @@ class OrgEventController extends Controller
                         'status' => $reg->attended ? 'attended' : 'registered',
                         'created_at' => $reg->created_at,
                         'source' => $reg->source ?? 'Web Organica',
-                 
+
                         'is_new_lead' => (bool) $reg->is_new_lead,
+                        'contact_status' => $reg->contact_status ?? 'Sin contactar',
+                        'notes' => $reg->notes,
                         'customer' => $reg->customer ? [
                             'id' => $reg->customer->id,
                             'uid' => $reg->customer->uid,

@@ -34,6 +34,7 @@ class OrgEvent extends Model
         'ends_at',
         'is_all_day',
         'is_active',
+        'is_private',
         'status',
     ];
 
@@ -42,6 +43,7 @@ class OrgEvent extends Model
         'ends_at' => 'datetime',
         'is_all_day' => 'boolean',
         'is_active' => 'boolean',
+        'is_private' => 'boolean',
         'resources' => 'array',
         'meta' => 'array',
     ];
@@ -60,6 +62,9 @@ class OrgEvent extends Model
     /**
      * Generar UID y Slug único automáticamente al crear
      */
+    /**
+     * Generar UID, Slug y Event Tag automáticamente
+     */
     protected static function boot()
     {
         parent::boot();
@@ -69,25 +74,18 @@ class OrgEvent extends Model
                 $event->uid = Str::uuid();
             }
 
-            // Generación de Slug único e inteligente
             if (empty($event->slug) && ! empty($event->title)) {
-                $slug = Str::slug($event->title);
-                $originalSlug = $slug;
-                $count = 1;
-
-                // Validar si ya existe el slug en la misma empresa y agregar sufijo si es necesario
-                while (static::where('org_company_id', $event->org_company_id)->where('slug', $slug)->exists()) {
-                    $slug = "{$originalSlug}-{$count}";
-                    $count++;
-                }
-
-                $event->slug = $slug;
+                $event->slug = static::generateUniqueSlug(
+                    $event->title,
+                    $event->org_company_id,
+                    (bool) $event->is_private
+                );
             }
 
             if (empty($event->event_tag)) {
                 $startsAt = ! empty($event->starts_at)
-        ? Carbon::parse($event->starts_at)->timezone('America/Chicago')
-        : now()->timezone('America/Chicago');
+                    ? Carbon::parse($event->starts_at)->timezone('America/Chicago')
+                    : now()->timezone('America/Chicago');
 
                 $dateFormatted = $startsAt->format('Ymd');
                 $shortUid = substr((string) $event->uid, 0, 6);
@@ -95,6 +93,53 @@ class OrgEvent extends Model
                 $event->event_tag = "event-{$dateFormatted}-{$shortUid}";
             }
         });
+
+        // Regenerar slug si cambia el título o la privacidad del evento
+        static::updating(function ($event) {
+            if (! $event->isDirty('title') && ! $event->isDirty('is_private')) {
+                return;
+            }
+
+            if (empty($event->title)) {
+                return;
+            }
+
+            $event->slug = static::generateUniqueSlug(
+                $event->title,
+                $event->org_company_id,
+                (bool) $event->is_private,
+                $event->id
+            );
+        });
+    }
+
+    /**
+     * Genera un slug único por empresa.
+     * - Privados: sufijo aleatorio para que el link no sea adivinable.
+     * - $ignoreId: excluye al propio evento al validar (para updates).
+     */
+    public static function generateUniqueSlug(string $title, int $companyId, bool $isPrivate = false, ?int $ignoreId = null): string
+    {
+        $baseSlug = Str::slug($title);
+
+        if ($isPrivate) {
+            $baseSlug .= '-'.Str::lower(Str::random(8));
+        }
+
+        $slug = $baseSlug;
+        $count = 1;
+
+        while (
+            static::where('org_company_id', $companyId)
+                ->where('slug', $slug)
+                ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
+                ->exists()
+        ) {
+            $slug = "{$baseSlug}-{$count}";
+            $count++;
+        }
+
+        return $slug;
     }
 
     /**
@@ -197,5 +242,13 @@ class OrgEvent extends Model
 
         // Generamos la ruta limpia usando el slug dinámico del evento
         return "{$domain}/acceso/{$this->slug}";
+    }
+
+    /**
+     * Solo eventos visibles en el listado público (excluye privados/exclusivos)
+     */
+    public function scopePubliclyListed($query)
+    {
+        return $query->where('is_private', false);
     }
 }
