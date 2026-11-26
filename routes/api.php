@@ -334,7 +334,7 @@ Route::prefix('v1')->group(function () {
                     Route::delete('/projects/{projectUid}', [\App\Http\Controllers\Api\OrgProjectController::class, 'destroy']);
                 });
             });
-            
+
             // ==========================================
             // 📊 TAREAS DE PROYECTOS / PROJECT TASKS
             // ==========================================
@@ -344,7 +344,7 @@ Route::prefix('v1')->group(function () {
                 Route::put('/tasks/{taskUid}', [\App\Http\Controllers\Api\OrgProjectTaskController::class, 'update']);
                 Route::delete('/tasks/{taskUid}', [\App\Http\Controllers\Api\OrgProjectTaskController::class, 'destroy']);
             });
-            
+
             // ==========================================
             // 🌐 ENLACES DE LA COMPAÑÍA (Link Block)
             // ==========================================
@@ -751,6 +751,8 @@ Route::prefix('v1')->group(function () {
 
                 // 👇 Ruta para el catálogo de servicios del Partner
                 Route::get('/partner-services', [\App\Http\Controllers\Api\Partner\PartnerServiceController::class, 'index']);
+
+                Route::post('/partner-services/{serviceUid}/checkout', [\App\Http\Controllers\Api\Partner\PartnerServiceController::class, 'checkout']);
 
                 Route::post('/partner-services/{serviceUid}/send-email', [\App\Http\Controllers\Api\Partner\PartnerServiceController::class, 'sendViaEmail'])
                     ->middleware('throttle:5,1');
